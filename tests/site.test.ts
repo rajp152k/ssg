@@ -266,6 +266,88 @@ describe('site build', () => {
     }
   });
 
+  it('renders pane titles from template placeholders and date-only metadata header', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-pane-meta-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<!doctype html><html><body><p class="meta">{{date}}</p>{{workbench_html}}</body></html>',
+      'utf8',
+    );
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+
+    const postDir = path.join(postsDir, 'templated-panes');
+    fs.mkdirSync(postDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(postDir, 'post.json'),
+      JSON.stringify(
+        {
+          title: 'Templated Pane Titles',
+          slug: 'templated-panes',
+          date: '2026-07-02',
+          panes: [
+            { id: 'human', title: '{{author}}' },
+            { id: 'agent', title: 'his AI' },
+          ],
+          layout: {
+            preset: '1x2',
+          },
+          sync: {
+            enabled: true,
+            source: 'human',
+          },
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
+    fs.writeFileSync(path.join(postDir, 'human.md'), '# Human\n\nI write.', 'utf8');
+    fs.writeFileSync(path.join(postDir, 'agent.md'), '# AI\n\nI draft.', 'utf8');
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Raj',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: 'Footer',
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      buildSite(config);
+
+      const post = fs.readFileSync(path.join(outputDir, 'templated-panes', 'index.html'), 'utf8');
+      expect(post).toContain('<p class="meta">2026-07-02</p>');
+      expect(post).toContain('<h2>Raj</h2>');
+      expect(post).toContain('<h2>his AI</h2>');
+      expect(post).not.toContain('•');
+      expect(post).not.toContain('{{author}}');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('renders post meta date and content correctly', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-'));
     const postsDir = path.join(tmp, 'content', 'posts');

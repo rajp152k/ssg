@@ -495,13 +495,14 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
   const baseContext: TemplateContext = {
     site_title: config.site.title,
     site_author: config.site.author,
-    site_description: config.site.description,
-    site_language: config.site.language,
-    site_url: config.site.baseUrl,
     site_index_title: config.site.indexTitle,
     site_index_description: config.site.indexDescription,
     site_footer: config.site.footer,
     site_copyright_year: year,
+    author: config.site.author,
+    site_description: config.site.description,
+    site_language: config.site.language,
+    site_url: config.site.baseUrl,
   };
 
   return {
@@ -559,7 +560,7 @@ function paneStyleMap(layout: PostLayout): Record<string, string> {
   return map;
 }
 
-function buildWorkbenchMarkup(post: Post): string {
+function buildWorkbenchMarkup(post: Post, config: SsgConfig): string {
   const paneIds = post.panes.map((pane) => String(pane.id));
   const normalizedLayout = normalizeLayoutAreas(post.layout, paneIds);
   const gridStyle = createWorkAreaStyle(normalizedLayout);
@@ -568,6 +569,8 @@ function buildWorkbenchMarkup(post: Post): string {
   const content = post.panes
     .map((pane) => {
       const style = styles[String(pane.id)] ?? '';
+      const paneTitle = escapeHtml(renderTemplate(String(pane.title), buildTemplateContext(config, {})));
+
       return `
       <section
         class="ssg-pane"
@@ -576,7 +579,7 @@ function buildWorkbenchMarkup(post: Post): string {
         style="${style}"
       >
         <header class="ssg-pane__header">
-          <h2>${escapeHtml(String(pane.title))}</h2>
+          <h2>${paneTitle}</h2>
         </header>
         <div class="ssg-pane__body" data-pane-content>${pane.bodyHtml}</div>
       </section>
@@ -643,7 +646,7 @@ export function buildSite(config: SsgConfig): void {
       content: post.bodyHtml,
       document_title: `${post.metadata.title} · ${config.site.title}`,
       document_description: `${post.metadata.title} by ${config.site.author}`,
-      workbench_html: buildWorkbenchMarkup(post),
+      workbench_html: buildWorkbenchMarkup(post, config),
       workbench_script: WORKBENCH_SCRIPT,
       sync_enabled: post.sync.enabled ? 'true' : 'false',
       sync_source: String(post.sync.source),

@@ -2,8 +2,8 @@
   "title": "Human-Agent Workbench Layout",
   "date": "2026-07-03",
   "panes": [
-    { "id": "human", "title": "Human" },
-    { "id": "agent", "title": "Agent Draft" }
+    { "id": "human", "title": "{{author}}" },
+    { "id": "agent", "title": "his AI" }
   ],
   "layout": {
     "preset": "1x2"
