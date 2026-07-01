@@ -21,6 +21,7 @@ const WORKBENCH_SCRIPT = `
   }
 
   const syncEnabled = workbench.dataset.syncEnabled === 'true';
+  const syncSourcePaneId = 'human';
   const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
   const paneById = new Map();
   const paneContentById = new Map();
@@ -158,7 +159,7 @@ const WORKBENCH_SCRIPT = `
   }
 
   const applySync = (sourceId) => {
-    if (!syncEnabled || typeof sourceId !== 'string') {
+    if (!syncEnabled || typeof sourceId !== 'string' || sourceId !== syncSourcePaneId) {
       return;
     }
 
@@ -297,6 +298,10 @@ const WORKBENCH_SCRIPT = `
         }
 
         if (isPaneSyncSuppressed(paneId)) {
+          return;
+        }
+
+        if (paneId !== syncSourcePaneId) {
           return;
         }
 

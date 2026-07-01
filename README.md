@@ -92,7 +92,7 @@ For synced workbench posts, heading alignment is enforced during `build`:
 - headings must match exactly (same level and normalized text sequence),
 - sync source is validated (defaults to `human`) and must exist for checks.
 
-At runtime, scroll sync is bidirectional: scrolling either pane syncs the other to the same heading index.
+At runtime, scroll sync is one-way from **human** to **agent**: only human-pane scrolling drives the agent pane. The human pane remains independent if you scroll the agent pane manually.
 
 If headings do not match, the build fails with a clear mismatch error.
 
