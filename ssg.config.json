@@ -9,7 +9,8 @@
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 Raj",
     "theme": "themes/tbm.css",
-    "font": "fonts/terminess.css"
+    "font": "fonts/terminess.css",
+    "assistant": "his AI"
   },
   "paths": {
     "postsDir": "content/posts",

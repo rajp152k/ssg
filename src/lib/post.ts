@@ -16,7 +16,7 @@ import { derivePostSlug } from './slug';
 
 const defaultPaneDefinitions: RawPostPaneConfig[] = [
   { id: 'human', title: '{{author}}', file: 'human.md' },
-  { id: 'agent', title: 'his AI', file: 'agent.md' },
+  { id: 'agent', title: '{{assistant}}', file: 'agent.md' },
 ];
 
 const FALLBACK_TEXT = '<p><em>No content yet.</em></p>';
@@ -120,7 +120,7 @@ function normalizePaneConfig(
 
   return [
     configured.get('human') ?? { id: 'human', title: '{{author}}', file: 'human.md' },
-    configured.get('agent') ?? { id: 'agent', title: 'his AI', file: 'agent.md' },
+    configured.get('agent') ?? { id: 'agent', title: '{{assistant}}', file: 'agent.md' },
   ];
 }
 

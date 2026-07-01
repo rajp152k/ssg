@@ -21,6 +21,7 @@ export interface SiteConfig {
   footer: string;
   theme?: string;
   font?: string;
+  assistant?: string;
 }
 
 export interface DevConfig {
@@ -70,6 +71,7 @@ export const defaultConfig: SsgConfig = {
     indexTitle: 'Posts',
     indexDescription: 'Latest posts',
     footer: '',
+    assistant: 'his AI',
   },
   dev: {
     host: '127.0.0.1',

@@ -3,7 +3,7 @@
   "date": "2026-07-03",
   "panes": [
     { "id": "human", "title": "{{author}}" },
-    { "id": "agent", "title": "his AI" }
+    { "id": "agent", "title": "{{assistant}}" }
   ],
   "layout": {
     "preset": "1x2"

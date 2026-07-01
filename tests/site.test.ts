@@ -294,7 +294,7 @@ describe('site build', () => {
           date: '2026-07-02',
           panes: [
             { id: 'human', title: '{{author}}' },
-            { id: 'agent', title: 'his AI' },
+            { id: 'agent', title: '{{assistant}}' },
           ],
           layout: {
             preset: '1x2',
@@ -327,6 +327,7 @@ describe('site build', () => {
         indexTitle: 'Posts',
         indexDescription: 'desc',
         footer: 'Footer',
+        assistant: 'his AI',
       },
       dev: {
         host: '127.0.0.1',
@@ -343,6 +344,7 @@ describe('site build', () => {
       expect(post).toContain('<h2>his AI</h2>');
       expect(post).not.toContain('•');
       expect(post).not.toContain('{{author}}');
+      expect(post).not.toContain('{{assistant}}');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

@@ -108,7 +108,8 @@ The config file is now a first-class way to drive templates and defaults.
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 Raj",
     "theme": "themes/tbm.css",
-    "font": "fonts/terminess.css"
+    "font": "fonts/terminess.css",
+    "assistant": "his AI"
   },
   "paths": {
     "postsDir": "content/posts",
@@ -133,6 +134,8 @@ These keys are available as template variables:
 - `{{site_index_description}}`
 - `{{site_footer}}`
 - `{{site_copyright_year}}` (derived at build time)
+- `{{author}}`
+- `{{assistant}}`
 - `{{css_import}}` (optional `<link>` tag for configured `site.theme`)
 - `{{font_import}}` (optional stylesheet or inline font declaration for configured `site.font`)
 

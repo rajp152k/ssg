@@ -500,6 +500,7 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
     site_footer: config.site.footer,
     site_copyright_year: year,
     author: config.site.author,
+    assistant: config.site.assistant ?? 'his AI',
     site_description: config.site.description,
     site_language: config.site.language,
     site_url: config.site.baseUrl,

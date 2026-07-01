@@ -15,6 +15,7 @@ describe('config resolution', () => {
         author: 'Test Author',
         theme: 'themes/tbm.css',
         font: 'fonts/terminess.css',
+        assistant: 'his AI',
       },
       paths: {
         postsDir: 'posts',
@@ -36,6 +37,7 @@ describe('config resolution', () => {
       expect(config.site.author).toBe('Test Author');
       expect(config.site.theme).toBe('themes/tbm.css');
       expect(config.site.font).toBe('fonts/terminess.css');
+      expect(config.site.assistant).toBe('his AI');
       expect(config.postsDir).toBe(path.join(tmp, 'posts'));
       expect(config.templatesDir).toBe(path.join(tmp, 'templates'));
       expect(config.outputDir).toBe(path.join(tmp, 'build'));
