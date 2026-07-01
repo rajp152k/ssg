@@ -14,16 +14,19 @@ The first iteration implements:
   - post pages (`templates/post.html`)
   - list page (`templates/index.html`)
 - Deterministic slug generation (title/file-based fallback)
-- CLI command: `build`
+- CLI commands:
+  - `build` – render all posts to `public`
+  - `dev` – local iterative workflow with watch + live reload
 - Output directory: `public`
 
 Only a date-based post model is implemented for now; tags/categories are intentionally out of scope in this phase.
 
 ## Project structure
 
-- `src/config.ts` — configuration defaults
+- `src/config.ts` — configuration + path resolution helpers
 - `src/cli.ts` — command entrypoint
 - `src/commands/build.ts` — build command
+- `src/commands/dev.ts` — dev loop command (watch + server + reload)
 - `src/lib/post.ts` — markdown + frontmatter parsing + model
 - `src/lib/site.ts` — site generation
 - `src/lib/template.ts` — basic template rendering helpers
@@ -64,16 +67,29 @@ npm install
 npm run build
 ```
 
-This runs:
+Build once:
 
-```
+```bash
 tsx src/cli.ts build
 ```
 
-The generated output is written to `public/`.
+Iterate locally with instant feedback:
+
+```bash
+npm run dev
+# opens localhost:3000 by default
+npm run dev -- --port=4000
+```
+
+`dev`:
+- builds on startup
+- watches `content/posts`, `templates`, and `src`
+- serves `public` at `http://localhost:3000`
+- injects a small EventSource script into generated HTML for auto-refresh
 
 ## Notes
 
-- Generated site output (`public/`) is written fresh each run.
+- Generated site output (`public/`) is written fresh each build.
 - Frontmatter parsing currently uses `gray-matter`.
 - Markdown conversion currently uses `marked`.
+- This is intentionally minimal; later phases can add collections, RSS, themes, bundling, plugin hooks, and asset pipelines.
