@@ -1,5 +1,7 @@
 # ssg
 
+[![CI](https://github.com/rajp152k/ssg/actions/workflows/ci.yml/badge.svg)](https://github.com/rajp152k/ssg/actions/workflows/ci.yml)
+
 A lightweight TypeScript-based static site generator for learning the architecture and growing into a real platform.
 
 ## Current architecture milestone (MVP)
