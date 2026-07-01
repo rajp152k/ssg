@@ -25,7 +25,14 @@ const WORKBENCH_SCRIPT = `
   const paneById = new Map();
   const paneContentById = new Map();
   const headingRecordsById = new Map();
-  let isApplyingSync = false;
+  const syncAnimationsById = new Map();
+
+  const HEADING_OFFSET = 16;
+  const SYNC_SCROLL_DURATION = 160;
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
 
   function collectHeadings(content) {
     const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(
@@ -58,12 +65,82 @@ const WORKBENCH_SCRIPT = `
 
   function findActiveHeadingIndex(headings, scrollTop) {
     for (let index = headings.length - 1; index >= 0; index--) {
-      if (scrollTop + 16 >= headings[index].top) {
+      if (scrollTop + HEADING_OFFSET >= headings[index].top) {
         return index;
       }
     }
 
     return -1;
+  }
+
+  function buildTargetTop(sourceHeadings, targetHeadings, sourceTop, activeHeadingIndex) {
+    const currentSourceHeading = sourceHeadings[activeHeadingIndex];
+    const nextSourceHeading = sourceHeadings[activeHeadingIndex + 1];
+    const currentTargetHeading = targetHeadings[activeHeadingIndex];
+    const nextTargetHeading = targetHeadings[activeHeadingIndex + 1];
+
+    if (!nextSourceHeading || !nextTargetHeading) {
+      return currentTargetHeading.top;
+    }
+
+    const sourceSpan = nextSourceHeading.top - currentSourceHeading.top;
+    if (sourceSpan <= 0) {
+      return currentTargetHeading.top;
+    }
+
+    const sourceProgress = clamp((sourceTop - currentSourceHeading.top) / sourceSpan, 0, 1);
+    return currentTargetHeading.top + sourceProgress * (nextTargetHeading.top - currentTargetHeading.top);
+  }
+
+  function easeInOutQuad(progress) {
+    return progress < 0.5
+      ? 2 * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+  }
+
+  function scrollPaneToIndex(paneId, content, targetTop) {
+    const maxScroll = content.scrollHeight - content.clientHeight;
+    const destination = clamp(targetTop, 0, Math.max(0, maxScroll));
+    const existing = syncAnimationsById.get(paneId);
+
+    if (Math.abs(destination - content.scrollTop) < 1) {
+      if (existing?.raf) {
+        cancelAnimationFrame(existing.raf);
+      }
+      syncAnimationsById.delete(paneId);
+      return;
+    }
+
+    if (existing && Math.abs(existing.target - destination) < 1) {
+      return;
+    }
+
+    if (existing?.raf) {
+      cancelAnimationFrame(existing.raf);
+    }
+
+    const state = {
+      target: destination,
+      from: content.scrollTop,
+      startTime: performance.now(),
+      raf: 0,
+    };
+
+    const step = (timestamp) => {
+      const elapsed = timestamp - state.startTime;
+      const progress = clamp(elapsed / SYNC_SCROLL_DURATION, 0, 1);
+      const eased = easeInOutQuad(progress);
+      content.scrollTop = state.from + (state.target - state.from) * eased;
+
+      if (progress < 1) {
+        state.raf = window.requestAnimationFrame(step);
+      } else {
+        syncAnimationsById.delete(paneId);
+      }
+    };
+
+    state.raf = window.requestAnimationFrame(step);
+    syncAnimationsById.set(paneId, state);
   }
 
   for (const pane of paneElements) {
@@ -74,7 +151,7 @@ const WORKBENCH_SCRIPT = `
   }
 
   const applySync = (sourceId) => {
-    if (!syncEnabled || isApplyingSync || typeof sourceId !== 'string') {
+    if (!syncEnabled || typeof sourceId !== 'string') {
       return;
     }
 
@@ -90,42 +167,44 @@ const WORKBENCH_SCRIPT = `
       return;
     }
 
-    const activeHeadingIndex = findActiveHeadingIndex(sourceHeadings, sourceContent.scrollTop);
+    const sourceScrollTop = sourceContent.scrollTop;
+    const activeHeadingIndex = findActiveHeadingIndex(sourceHeadings, sourceScrollTop);
     if (activeHeadingIndex < 0) {
       return;
     }
 
-    isApplyingSync = true;
-    try {
-      for (const pane of paneElements) {
-        if (pane === sourcePane) {
-          continue;
-        }
-
-        const paneId = pane.getAttribute('data-pane-id');
-        if (!paneId) {
-          continue;
-        }
-
-        const targetHeadings = headingRecordsById.get(paneId);
-        if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
-          continue;
-        }
-
-        const content = pane.querySelector('[data-pane-content]');
-        if (!(content instanceof HTMLElement)) {
-          continue;
-        }
-
-        const maxScroll = content.scrollHeight - content.clientHeight;
-        if (maxScroll <= 0) {
-          continue;
-        }
-
-        content.scrollTop = Math.max(0, Math.min(maxScroll, targetHeadings[activeHeadingIndex].top));
+    for (const pane of paneElements) {
+      if (pane === sourcePane) {
+        continue;
       }
-    } finally {
-      isApplyingSync = false;
+
+      const paneId = pane.getAttribute('data-pane-id');
+      if (!paneId) {
+        continue;
+      }
+
+      const targetHeadings = headingRecordsById.get(paneId);
+      if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
+        continue;
+      }
+
+      const content = pane.querySelector('[data-pane-content]');
+      if (!(content instanceof HTMLElement)) {
+        continue;
+      }
+
+      const maxScroll = content.scrollHeight - content.clientHeight;
+      if (maxScroll <= 0) {
+        continue;
+      }
+
+      const targetTop = buildTargetTop(
+        sourceHeadings,
+        targetHeadings,
+        sourceScrollTop + HEADING_OFFSET,
+        activeHeadingIndex,
+      );
+      scrollPaneToIndex(paneId, content, targetTop);
     }
   };
 
@@ -165,9 +244,15 @@ const WORKBENCH_SCRIPT = `
     content.addEventListener(
       'scroll',
       () => {
-        if (!isApplyingSync && syncEnabled) {
-          frameSync(paneId);
+        if (!syncEnabled) {
+          return;
         }
+
+        if (syncAnimationsById.has(paneId)) {
+          return;
+        }
+
+        frameSync(paneId);
       },
       { passive: true },
     );
