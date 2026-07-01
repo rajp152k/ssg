@@ -1,4 +1,4 @@
-export type PostPaneId = 'human' | 'agent' | 'abstract' | 'view' | string;
+export type PostPaneId = 'human' | 'agent' | string;
 
 export interface RawPostFrontmatter {
   title?: string;
@@ -13,7 +13,7 @@ export interface RawPostPaneConfig {
 }
 
 export interface RawPostLayoutConfig {
-  preset?: '1x3+1' | '4x1' | '1x4';
+  preset?: '2x1' | '1x2';
   columns?: string;
   rows?: string;
   areas?: string[][];

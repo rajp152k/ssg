@@ -17,8 +17,6 @@ import { derivePostSlug } from './slug';
 const defaultPaneDefinitions: RawPostPaneConfig[] = [
   { id: 'human', title: 'Human', file: 'human.md' },
   { id: 'agent', title: 'Agent', file: 'agent.md' },
-  { id: 'abstract', title: 'Abstract', file: 'abstract.md' },
-  { id: 'view', title: 'View', file: 'view.md' },
 ];
 
 const FALLBACK_TEXT = '<p><em>No content yet.</em></p>';
@@ -53,7 +51,8 @@ function normalizePaneConfig(
     return defaultPaneDefinitions;
   }
 
-  const next: RawPostPaneConfig[] = [];
+  const configured = new Map<string, RawPostPaneConfig>();
+
   for (const pane of panes) {
     if (!pane || typeof pane.id !== 'string') {
       continue;
@@ -64,15 +63,22 @@ function normalizePaneConfig(
       continue;
     }
 
+    if (id !== 'human' && id !== 'agent') {
+      continue;
+    }
+
     used.add(id);
-    next.push({
+    configured.set(id, {
       id,
       title: pane.title?.trim() || id,
       file: pane.file ?? `${id}.md`,
     });
   }
 
-  return next;
+  return [
+    configured.get('human') ?? { id: 'human', title: 'Human', file: 'human.md' },
+    configured.get('agent') ?? { id: 'agent', title: 'Agent', file: 'agent.md' },
+  ];
 }
 
 function applyAgentSessionSyntax(markdown: string): string {
@@ -105,30 +111,9 @@ function applyAgentSessionSyntax(markdown: string): string {
   return output;
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&');
-}
-
-function normalizeViewPaneContent(html: string): string {
-  return html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (_match, code) => {
-    return `<pre class="mermaid">${decodeEntities(String(code))}</pre>`;
-  });
-}
-
 function renderPaneMarkdown(raw: string, paneId: PostPaneId): string {
   const withSessions = paneId === 'agent' ? applyAgentSessionSyntax(raw) : raw;
-  const parsed = marked.parse(withSessions) as string;
-
-  if (paneId === 'view') {
-    return normalizeViewPaneContent(parsed);
-  }
-
-  return parsed;
+  return marked.parse(withSessions) as string;
 }
 
 function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
@@ -235,44 +220,23 @@ function buildDefaultLayout(paneIds: string[]): PostLayout {
   };
 }
 
-function buildPresetLayout(preset: '1x3+1' | '4x1' | '1x4', paneIds: string[]): PostLayout {
+function buildPresetLayout(preset: '2x1' | '1x2', paneIds: string[]): PostLayout {
   const normalized = paneIds.map((id) => id.trim()).filter(Boolean);
-  const count = normalized.length;
+  const first = normalized[0] ?? 'human';
+  const second = normalized[1] ?? 'agent';
 
-  if (preset === '4x1') {
+  if (preset === '2x1') {
     return {
-      columns: '1fr',
-      rows: normalized.map(() => '1fr').join(' '),
-      areas: normalized.map((id) => [id]),
-    };
-  }
-
-  if (preset === '1x4') {
-    const columns = normalized.map(() => '1fr').join(' ');
-    return {
-      columns,
+      columns: '2fr 1fr',
       rows: '1fr',
-      areas: [normalized],
-    };
-  }
-
-  if (count <= 3) {
-    return {
-      columns: '1fr 1fr 1fr',
-      rows: '1fr',
-      areas: [
-        [normalized[0], normalized[1], normalized[2]],
-      ],
+      areas: [[first, second]],
     };
   }
 
   return {
-    columns: '2fr 1fr 1fr',
-    rows: '1fr 1fr',
-    areas: [
-      [normalized[0], normalized[1], normalized[2]],
-      [normalized[3], normalized[3], normalized[3]],
-    ],
+    columns: '1fr 1fr',
+    rows: '1fr',
+    areas: [[first, second]],
   };
 }
 

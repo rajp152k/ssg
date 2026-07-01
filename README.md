@@ -57,8 +57,6 @@ content/posts/my-topic/
   post.json
   human.md
   agent.md
-  abstract.md
-  view.md
 ```
 
 `post.json` controls metadata, pane order, and layout:
@@ -69,12 +67,10 @@ content/posts/my-topic/
   "date": "2026-07-03",
   "panes": [
     { "id": "human", "title": "Human", "file": "human.md" },
-    { "id": "agent", "title": "Agent", "file": "agent.md" },
-    { "id": "abstract", "title": "Abstract", "file": "abstract.md" },
-    { "id": "view", "title": "View", "file": "view.md" }
+    { "id": "agent", "title": "Agent", "file": "agent.md" }
   ],
   "layout": {
-    "preset": "1x3+1"
+    "preset": "1x2"
   },
   "sync": {
     "enabled": true,
@@ -85,11 +81,10 @@ content/posts/my-topic/
 
 Supported pane presets:
 
-- `1x3+1` (default for 4 panes)
-- `4x1`
-- `1x4`
+- `1x2` (equal columns)
+- `2x1` (first pane wider)
 
-When no layout is configured, `ssg` uses a sensible default based on pane count.
+When no layout is configured, `ssg` uses `1x2`.
 
 `src/lib/post.ts` normalizes both forms into a unified `Post` model so templates can render all posts consistently.
 ## Config (`ssg.config.json`)

@@ -94,7 +94,7 @@ From filename title.`,
     }
   });
 
-  it('loads a post directory configured with human/agent/abstract/view', () => {
+  it('loads a post directory configured with human and agent', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
     const postDir = path.join(tmp, 'coauthoring-post');
 
@@ -107,11 +107,9 @@ From filename title.`,
       panes: [
         { id: 'human', file: 'human.md', title: 'Human notes' },
         { id: 'agent', file: 'agent.md', title: 'Agent draft' },
-        { id: 'abstract', file: 'abstract.md', title: 'Math notes' },
-        { id: 'view', file: 'view.md', title: 'Visualizations' },
       ],
       layout: {
-        preset: '1x3+1',
+        preset: '1x2',
       },
       sync: {
         enabled: true,
@@ -122,16 +120,47 @@ From filename title.`,
     fs.writeFileSync(path.join(postDir, 'post.json'), JSON.stringify(config, null, 2), 'utf8');
     createTempFile(path.join(postDir, 'human.md'), '# Human\n\nThe main idea.');
     createTempFile(path.join(postDir, 'agent.md'), '# Agent\n\nGenerated output.');
-    createTempFile(path.join(postDir, 'abstract.md'), '# Abstract\n\nMathematical framing.');
-    createTempFile(path.join(postDir, 'view.md'), '```mermaid\ngraph TD\nA-->B\n```');
 
     try {
       const post = loadPost(postDir);
       expect(post.metadata.title).toBe('Co-Authoring Trial');
-      expect(post.panes.map((pane) => pane.id)).toEqual(['human', 'agent', 'abstract', 'view']);
-      expect(post.layout.areas).toHaveLength(2);
+      expect(post.panes.map((pane) => pane.id)).toEqual(['human', 'agent']);
+      expect(post.layout.areas).toHaveLength(1);
       expect(post.panes[1].bodyHtml).toContain('Generated output');
-      expect(post.panes[3].bodyHtml).toContain('<pre class="mermaid">');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('ignores extra pane ids in post config and keeps human+agent only', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
+    const postDir = path.join(tmp, 'coauthoring-post');
+
+    fs.mkdirSync(postDir, { recursive: true });
+
+    const config = {
+      title: 'Pane Filter Trial',
+      date: '2026-07-02',
+      panes: [
+        { id: 'abstract', file: 'abstract.md', title: 'Abstract notes' },
+        { id: 'agent', file: 'agent.md', title: 'Agent draft' },
+        { id: 'view', file: 'view.md', title: 'View notes' },
+        { id: 'human', file: 'human.md', title: 'Human notes' },
+      ],
+      sync: {
+        enabled: true,
+        source: 'human',
+      },
+    };
+
+    fs.writeFileSync(path.join(postDir, 'post.json'), JSON.stringify(config, null, 2), 'utf8');
+    createTempFile(path.join(postDir, 'human.md'), '# Human\n\nPrimary text.');
+    createTempFile(path.join(postDir, 'agent.md'), '# Agent\n\nAgent text.');
+
+    try {
+      const post = loadPost(postDir);
+      expect(post.panes.map((pane) => pane.id)).toEqual(['human', 'agent']);
+      expect(post.panes.map((pane) => pane.title)).toEqual(['Human notes', 'Agent draft']);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

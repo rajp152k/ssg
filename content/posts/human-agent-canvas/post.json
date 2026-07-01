@@ -3,12 +3,10 @@
   "date": "2026-07-03",
   "panes": [
     { "id": "human", "title": "Human" },
-    { "id": "agent", "title": "Agent Draft" },
-    { "id": "abstract", "title": "Abstract / Math" },
-    { "id": "view", "title": "View / Mermaid" }
+    { "id": "agent", "title": "Agent Draft" }
   ],
   "layout": {
-    "preset": "1x3+1"
+    "preset": "1x2"
   },
   "sync": {
     "enabled": true,
