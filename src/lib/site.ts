@@ -20,7 +20,7 @@ const WORKBENCH_SCRIPT = `
     return;
   }
 
-  const syncEnabled = workbench.dataset.syncEnabled === 'true';
+  const syncEnabled = false;
   const syncSourcePaneId = 'human';
   const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
   const paneById = new Map();
