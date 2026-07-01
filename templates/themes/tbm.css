@@ -35,6 +35,7 @@ a:hover {
 
 .ssg-pane {
   border-color: var(--tbm-border);
+  border-radius: 0;
   background: var(--tbm-bg-panel);
 }
 
@@ -61,11 +62,12 @@ code {
 
 pre {
   padding: 0.6rem;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .agent-session {
   border-color: var(--tbm-border);
+  border-radius: 0;
   background: #0e1117;
 }
 
@@ -117,4 +119,5 @@ ol {
 img {
   max-width: 100%;
   border: 1px solid var(--tbm-border);
+  border-radius: 0;
 }
