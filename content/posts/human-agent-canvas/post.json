@@ -1,0 +1,17 @@
+{
+  "title": "Human-Agent Workbench Layout",
+  "date": "2026-07-03",
+  "panes": [
+    { "id": "human", "title": "Human" },
+    { "id": "agent", "title": "Agent Draft", "collapsed": true },
+    { "id": "abstract", "title": "Abstract / Math", "collapsed": false },
+    { "id": "view", "title": "View / Mermaid", "collapsed": false }
+  ],
+  "layout": {
+    "preset": "1x3+1"
+  },
+  "sync": {
+    "enabled": true,
+    "source": "human"
+  }
+}

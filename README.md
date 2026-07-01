@@ -33,34 +33,65 @@ Only a date-based post model is implemented for now; tags/categories are intenti
 - `src/lib/post.ts` — markdown + frontmatter parsing + model
 - `src/lib/site.ts` — site generation and template rendering
 - `src/lib/template.ts` — basic template rendering helpers
-- `content/posts/` — markdown input
+- `content/posts/` — markdown inputs and workbench post directories (legacy `.md` + directory bundles with `post.json`)
 - `templates/` — HTML layouts
 
 ## Post model
 
-Each post file lives under `content/posts` and must include frontmatter with at least:
+`ssg` now supports **legacy single-file posts** and **workbench posts**.
 
-- `title` (optional): defaults to file title if missing
+### Legacy markdown posts
+
+Each post file under `content/posts` can be a markdown file with frontmatter:
+
+- `title` (optional): defaults to filename
 - `date` (required): should be parseable by `new Date(value)`
+- `slug` (optional)
 
-Example:
+### Workbench posts
 
-```md
----
-title: Welcome to my SSG
-date: 2026-07-02
----
+A workbench post is a directory, typically:
 
-This is content in Markdown.
+```text
+content/posts/my-topic/
+  post.json
+  human.md
+  agent.md
+  abstract.md
+  view.md
 ```
 
-`src/lib/post.ts` parses and normalizes this into:
+`post.json` controls metadata, pane order, and layout:
 
-- `metadata.title`
-- `metadata.date: Date`
-- `metadata.isoDate: string`
-- `metadata.slug`
+```json
+{
+  "title": "Human Agent Workbench",
+  "date": "2026-07-03",
+  "panes": [
+    { "id": "human", "title": "Human", "file": "human.md", "collapsed": false },
+    { "id": "agent", "title": "Agent", "file": "agent.md", "collapsed": true },
+    { "id": "abstract", "title": "Abstract", "file": "abstract.md", "collapsed": false },
+    { "id": "view", "title": "View", "file": "view.md", "collapsed": false }
+  ],
+  "layout": {
+    "preset": "1x3+1"
+  },
+  "sync": {
+    "enabled": true,
+    "source": "human"
+  }
+}
+```
 
+Supported pane presets:
+
+- `1x3+1` (default for 4 panes)
+- `4x1`
+- `1x4`
+
+When no layout is configured, `ssg` uses a sensible default based on pane count.
+
+`src/lib/post.ts` normalizes both forms into a unified `Post` model so templates can render all posts consistently.
 ## Config (`ssg.config.json`)
 
 The config file is now a first-class way to drive templates and defaults.

@@ -1,11 +1,144 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Post } from '../types';
+import type { Post, PostLayout } from '../types';
 import { renderTemplate, formatDate } from './template';
-import { collectMarkdownFiles, loadPost } from './post';
+import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
 import type { SsgConfig } from '../config';
 
 type TemplateContext = Record<string, string>;
+
+const WORKBENCH_SCRIPT = `
+<script>
+(function () {
+  const workbench = document.querySelector('[data-workbench]');
+  if (!workbench) {
+    return;
+  }
+
+  const syncEnabled = workbench.dataset.syncEnabled === 'true';
+  const syncSource = workbench.dataset.syncSource || 'human';
+  const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
+  const paneById = new Map();
+
+  for (const pane of paneElements) {
+    const paneId = pane.getAttribute('data-pane-id');
+    if (paneId) {
+      paneById.set(paneId, pane);
+    }
+  }
+
+  const applySync = () => {
+    if (!syncEnabled) {
+      return;
+    }
+
+    const sourcePane = paneById.get(syncSource);
+    const sourceContent = sourcePane?.querySelector('[data-pane-content]');
+    if (!(sourceContent instanceof HTMLElement)) {
+      return;
+    }
+
+    const sourceMax = sourceContent.scrollHeight - sourceContent.clientHeight;
+    if (sourceMax <= 0) {
+      return;
+    }
+
+    const ratio = sourceContent.scrollTop / sourceMax;
+    for (const pane of paneElements) {
+      if (pane === sourcePane) {
+        continue;
+      }
+
+      const content = pane.querySelector('[data-pane-content]');
+      if (!(content instanceof HTMLElement)) {
+        continue;
+      }
+
+      const maxScroll = content.scrollHeight - content.clientHeight;
+      if (maxScroll <= 0) {
+        continue;
+      }
+
+      content.scrollTop = Math.round(ratio * maxScroll);
+    }
+  };
+
+  const frameSync = (() => {
+    let scheduled = false;
+    return () => {
+      if (scheduled) {
+        return;
+      }
+
+      scheduled = true;
+      window.requestAnimationFrame(() => {
+        scheduled = false;
+        applySync();
+      });
+    };
+  })();
+
+  const sourcePane = paneById.get(syncSource);
+  const sourceContent = sourcePane?.querySelector('[data-pane-content]');
+  if (sourceContent instanceof HTMLElement && syncEnabled) {
+    sourceContent.addEventListener('scroll', frameSync);
+  }
+
+  for (const button of workbench.querySelectorAll('[data-pane-toggle]')) {
+    button.addEventListener('click', (event) => {
+      const current = event.currentTarget;
+      if (!(current instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      const pane = current.closest('.ssg-pane');
+      if (!(pane instanceof HTMLElement)) {
+        return;
+      }
+
+      const content = pane.querySelector('[data-pane-content]');
+      if (!(content instanceof HTMLElement)) {
+        return;
+      }
+
+      const isCollapsed = pane.classList.toggle('is-collapsed');
+      pane.dataset.paneState = isCollapsed ? 'collapsed' : 'open';
+      content.style.display = isCollapsed ? 'none' : 'block';
+      current.setAttribute('aria-expanded', String(!isCollapsed));
+      current.textContent = isCollapsed ? 'Expand' : 'Collapse';
+      applySync();
+    });
+  }
+})();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+if (window.mermaid && document.querySelector('.mermaid')) {
+  window.mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'loose',
+  });
+}
+</script>
+
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\(', '\\)']],
+    displayMath: [['$$', '$$'], ['\\[', '\\]']],
+  },
+};
+
+const hasLatex = document.body.innerText.includes('$$') || document.body.innerText.includes('$');
+if (hasLatex && !document.getElementById('mathjax-script')) {
+  const script = document.createElement('script');
+  script.id = 'mathjax-script';
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+  document.head.appendChild(script);
+}
+</script>
+`;
 
 function readTemplate(templatesDir: string, name: string): string {
   const templatePath = path.join(templatesDir, name);
@@ -61,6 +194,94 @@ function renderPostsIndexTemplate(posts: Post[], template: string, config: SsgCo
   );
 }
 
+function normalizeLayoutAreas(layout: PostLayout, paneIds: string[]): PostLayout {
+  const known = new Set(paneIds);
+  return {
+    columns: layout.columns,
+    rows: layout.rows,
+    areas: layout.areas.map((row) => row.map((cell) => (known.has(cell) ? cell : '.'))),
+  };
+}
+
+function paneStyleMap(layout: PostLayout): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  for (const row of layout.areas) {
+    for (const paneId of row) {
+      if (paneId && paneId !== '.') {
+        map[paneId] = `grid-area: ${paneId};`;
+      }
+    }
+  }
+
+  return map;
+}
+
+function buildWorkbenchMarkup(post: Post): string {
+  const paneIds = post.panes.map((pane) => String(pane.id));
+  const normalizedLayout = normalizeLayoutAreas(post.layout, paneIds);
+  const gridStyle = createWorkAreaStyle(normalizedLayout);
+  const styles = paneStyleMap(normalizedLayout);
+
+  const content = post.panes
+    .map((pane) => {
+      const style = styles[String(pane.id)] ?? '';
+      return `
+      <section
+        class="ssg-pane ${pane.collapsed ? 'is-collapsed' : ''}"
+        data-scroll-pane
+        data-pane-id="${pane.id}"
+        data-pane-state="${pane.collapsed ? 'collapsed' : 'open'}"
+        style="${style}"
+      >
+        <header class="ssg-pane__header">
+          <h2>${escapeHtml(String(pane.title))}</h2>
+          <button
+            type="button"
+            class="ssg-pane__toggle"
+            data-pane-toggle
+            aria-expanded="${String(!pane.collapsed)}"
+          >
+            ${pane.collapsed ? 'Expand' : 'Collapse'}
+          </button>
+        </header>
+        <div class="ssg-pane__body" data-pane-content ${pane.collapsed ? 'style="display:none"' : ''}>${pane.bodyHtml}</div>
+      </section>
+      `;
+    })
+    .join('');
+
+  return `
+    <style>
+      #ssg-workbench {
+        ${gridStyle}
+        display: grid;
+        gap: 1rem;
+        min-height: 70vh;
+      }
+    </style>
+    <div
+      id="ssg-workbench"
+      class="ssg-workbench"
+      data-workbench
+      data-scroll-enabled="${post.sync.enabled ? 'true' : 'false'}"
+      data-sync-enabled="${post.sync.enabled ? 'true' : 'false'}"
+      data-sync-source="${post.sync.source}"
+    >
+      ${content}
+    </div>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function buildSite(config: SsgConfig): void {
   const postsDir = config.postsDir;
   const outputDir = config.outputDir;
@@ -76,20 +297,23 @@ export function buildSite(config: SsgConfig): void {
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const filePaths = collectMarkdownFiles(postsDir);
-  const posts = sortPostsByDateDesc(filePaths.map((filePath) => loadPost(filePath)));
+  const postSources = collectPostSources(postsDir);
+  const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
 
   for (const post of posts) {
-    const pageHtml = renderTemplate(
-      postTemplate,
-      buildTemplateContext(config, {
-        title: post.metadata.title,
-        date: formatDate(post.metadata.date),
-        content: post.bodyHtml,
-        document_title: `${post.metadata.title} · ${config.site.title}`,
-        document_description: `${post.metadata.title} by ${config.site.author}`,
-      }),
-    );
+    const pageContext = buildTemplateContext(config, {
+      title: post.metadata.title,
+      date: formatDate(post.metadata.date),
+      content: post.bodyHtml,
+      document_title: `${post.metadata.title} · ${config.site.title}`,
+      document_description: `${post.metadata.title} by ${config.site.author}`,
+      workbench_html: buildWorkbenchMarkup(post),
+      workbench_script: WORKBENCH_SCRIPT,
+      sync_enabled: post.sync.enabled ? 'true' : 'false',
+      sync_source: String(post.sync.source),
+    });
+
+    const pageHtml = renderTemplate(postTemplate, pageContext);
     writePage(outputDir, post.metadata.slug, pageHtml);
   }
 
