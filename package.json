@@ -8,6 +8,8 @@
     "build": "tsx src/cli.ts build",
     "dev": "tsx src/cli.ts dev",
     "build:watch": "tsx src/cli.ts dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "node -e \"const fs=require('fs');fs.rmSync('public', { recursive: true, force: true });\""
   },
   "repository": {
@@ -24,7 +26,8 @@
   "devDependencies": {
     "@types/node": "^24.8.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "packageManager": "npm@11.6.0"
 }

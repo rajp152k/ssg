@@ -122,6 +122,13 @@ npm run dev
 npm run dev -- --port=4000
 ```
 
+Test suite:
+
+```bash
+npm run test
+npm run test:watch
+```
+
 `dev`:
 - builds on startup
 - watches `content/posts`, `templates`

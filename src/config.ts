@@ -48,13 +48,17 @@ interface UserConfigFile {
   }>;
 }
 
-const defaultConfigFileName = 'ssg.config.json';
+const defaultPaths = {
+  postsDir: path.join('content', 'posts'),
+  outputDir: 'public',
+  templatesDir: path.join('templates'),
+};
 
 export const defaultConfig: SsgConfig = {
   sourceDir: process.cwd(),
-  postsDir: path.join(process.cwd(), 'content', 'posts'),
-  outputDir: path.join(process.cwd(), 'public'),
-  templatesDir: path.join(process.cwd(), 'templates'),
+  postsDir: defaultPaths.postsDir,
+  outputDir: defaultPaths.outputDir,
+  templatesDir: defaultPaths.templatesDir,
   site: {
     title: 'ssg',
     author: 'Author',
@@ -85,37 +89,25 @@ function loadConfigFile(configPath: string): UserConfigFile {
   }
 }
 
-function resolvePathValue(cwd: string, value: string | undefined, fallback: string): string {
-  return path.resolve(cwd, value ?? fallback);
-}
-
 export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
   const cwd = process.cwd();
   const resolvedConfigPath = options.configPath
     ? path.resolve(cwd, options.configPath)
-    : path.resolve(cwd, defaultConfigFileName);
+    : path.resolve(cwd, 'ssg.config.json');
 
   const userConfig = loadConfigFile(resolvedConfigPath);
+  const configBaseDir = fs.existsSync(resolvedConfigPath)
+    ? path.dirname(resolvedConfigPath)
+    : cwd;
 
-  const postsDir = resolvePathValue(
-    cwd,
-    options.postsDir ?? userConfig.paths?.postsDir,
-    path.relative(cwd, defaultConfig.postsDir),
-  );
-
-  const outputDir = resolvePathValue(
-    cwd,
-    options.outputDir ?? userConfig.paths?.outputDir,
-    path.relative(cwd, defaultConfig.outputDir),
-  );
-
-  const templatesDir = resolvePathValue(
-    cwd,
-    options.templatesDir ?? userConfig.paths?.templatesDir,
-    path.relative(cwd, defaultConfig.templatesDir),
-  );
+  const postsDir = path.resolve(configBaseDir, options.postsDir ?? userConfig.paths?.postsDir ?? defaultPaths.postsDir);
+  const outputDir = path.resolve(configBaseDir, options.outputDir ?? userConfig.paths?.outputDir ?? defaultPaths.outputDir);
+  const templatesDir = path.resolve(configBaseDir, options.templatesDir ?? userConfig.paths?.templatesDir ?? defaultPaths.templatesDir);
 
   const cliPort = options.port ? parseInt(options.port, 10) : undefined;
+  const configuredPort = Number.isInteger(cliPort)
+    ? (cliPort as number)
+    : undefined;
 
   return {
     sourceDir: cwd,
@@ -128,9 +120,9 @@ export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
     },
     dev: {
       host: options.host ?? userConfig.dev?.host ?? defaultConfig.dev.host,
-      port: Number.isNaN(cliPort ?? NaN)
-        ? userConfig.dev?.port ?? defaultConfig.dev.port
-        : cliPort ?? defaultConfig.dev.port,
+      port: Number.isInteger(configuredPort)
+        ? configuredPort
+        : (userConfig.dev?.port ?? defaultConfig.dev.port),
     },
   };
 }
