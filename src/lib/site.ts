@@ -465,7 +465,7 @@ function buildWorkbenchMarkup(post: Post): string {
       #ssg-workbench {
         ${gridStyle}
         display: grid;
-        gap: 0.5rem;
+        gap: 0.4rem;
         height: 100%;
         min-height: 0;
       }
