@@ -15,10 +15,10 @@ import type {
 import { derivePostSlug } from './slug';
 
 const defaultPaneDefinitions: RawPostPaneConfig[] = [
-  { id: 'human', title: 'Human', file: 'human.md', collapsed: false },
-  { id: 'agent', title: 'Agent', file: 'agent.md', collapsed: true },
-  { id: 'abstract', title: 'Abstract', file: 'abstract.md', collapsed: false },
-  { id: 'view', title: 'View', file: 'view.md', collapsed: false },
+  { id: 'human', title: 'Human', file: 'human.md' },
+  { id: 'agent', title: 'Agent', file: 'agent.md' },
+  { id: 'abstract', title: 'Abstract', file: 'abstract.md' },
+  { id: 'view', title: 'View', file: 'view.md' },
 ];
 
 const FALLBACK_TEXT = '<p><em>No content yet.</em></p>';
@@ -69,7 +69,6 @@ function normalizePaneConfig(
       id,
       title: pane.title?.trim() || id,
       file: pane.file ?? `${id}.md`,
-      collapsed: pane.collapsed ?? false,
     });
   }
 
@@ -77,7 +76,7 @@ function normalizePaneConfig(
 }
 
 function applyAgentSessionSyntax(markdown: string): string {
-  const sessionRegex = /<!--agent-session\s+([^>]*)-->([\s\S]*?)<\/agent-session-->/g;
+  const sessionRegex = /<!--agent-session(?:\s+([^>]*)?)?-->([\s\S]*?)<!--\/agent-session-->/g;
   if (!sessionRegex.test(markdown)) {
     return markdown;
   }
@@ -94,14 +93,11 @@ function applyAgentSessionSyntax(markdown: string): string {
     output += prelude;
 
     const titleMatch = /title\s*=\s*"([^"]*)"/.exec(attrText ?? '');
-    const collapsedMatch = /collapsed\s*=\s*"(true|false)"/i.exec(attrText ?? '');
-
     const title = titleMatch?.[1] ?? 'Session';
-    const isCollapsed = collapsedMatch?.[1]?.toLowerCase() === 'true';
-    const summary = escapeHtml(title);
+    const sessionTitle = escapeHtml(title);
 
     const body = marked.parse(sessionBody) as string;
-    output += `<details class="agent-session"${isCollapsed ? '' : ' open'}><summary>${summary}</summary>${body}</details>`;
+    output += `<div class="agent-session"><h4>${sessionTitle}</h4>${body}</div>`;
     lastIndex = (match.index ?? 0) + block.length;
   }
 
@@ -144,7 +140,6 @@ function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
       file: paneFile,
       rawContent: '',
       bodyHtml: FALLBACK_TEXT,
-      collapsed: paneConfig.collapsed ?? false,
       missing: true,
     };
   }
@@ -158,7 +153,6 @@ function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
     file: paneFile,
     rawContent,
     bodyHtml,
-    collapsed: paneConfig.collapsed ?? false,
     missing: false,
   };
 }
@@ -368,7 +362,6 @@ export function loadPost(filePath: string): Post {
           file: filePath,
           rawContent,
           bodyHtml,
-          collapsed: false,
           missing: false,
         },
       ],

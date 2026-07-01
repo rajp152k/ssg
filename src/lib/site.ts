@@ -83,32 +83,6 @@ const WORKBENCH_SCRIPT = `
   if (sourceContent instanceof HTMLElement && syncEnabled) {
     sourceContent.addEventListener('scroll', frameSync);
   }
-
-  for (const button of workbench.querySelectorAll('[data-pane-toggle]')) {
-    button.addEventListener('click', (event) => {
-      const current = event.currentTarget;
-      if (!(current instanceof HTMLButtonElement)) {
-        return;
-      }
-
-      const pane = current.closest('.ssg-pane');
-      if (!(pane instanceof HTMLElement)) {
-        return;
-      }
-
-      const content = pane.querySelector('[data-pane-content]');
-      if (!(content instanceof HTMLElement)) {
-        return;
-      }
-
-      const isCollapsed = pane.classList.toggle('is-collapsed');
-      pane.dataset.paneState = isCollapsed ? 'collapsed' : 'open';
-      content.style.display = isCollapsed ? 'none' : 'block';
-      current.setAttribute('aria-expanded', String(!isCollapsed));
-      current.textContent = isCollapsed ? 'Expand' : 'Collapse';
-      applySync();
-    });
-  }
 })();
 </script>
 
@@ -228,24 +202,15 @@ function buildWorkbenchMarkup(post: Post): string {
       const style = styles[String(pane.id)] ?? '';
       return `
       <section
-        class="ssg-pane ${pane.collapsed ? 'is-collapsed' : ''}"
+        class="ssg-pane"
         data-scroll-pane
         data-pane-id="${pane.id}"
-        data-pane-state="${pane.collapsed ? 'collapsed' : 'open'}"
         style="${style}"
       >
         <header class="ssg-pane__header">
           <h2>${escapeHtml(String(pane.title))}</h2>
-          <button
-            type="button"
-            class="ssg-pane__toggle"
-            data-pane-toggle
-            aria-expanded="${String(!pane.collapsed)}"
-          >
-            ${pane.collapsed ? 'Expand' : 'Collapse'}
-          </button>
         </header>
-        <div class="ssg-pane__body" data-pane-content ${pane.collapsed ? 'style="display:none"' : ''}>${pane.bodyHtml}</div>
+        <div class="ssg-pane__body" data-pane-content>${pane.bodyHtml}</div>
       </section>
       `;
     })

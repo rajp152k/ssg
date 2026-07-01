@@ -106,7 +106,7 @@ From filename title.`,
       date: '2026-07-02',
       panes: [
         { id: 'human', file: 'human.md', title: 'Human notes' },
-        { id: 'agent', file: 'agent.md', title: 'Agent draft', collapsed: true },
+        { id: 'agent', file: 'agent.md', title: 'Agent draft' },
         { id: 'abstract', file: 'abstract.md', title: 'Math notes' },
         { id: 'view', file: 'view.md', title: 'Visualizations' },
       ],

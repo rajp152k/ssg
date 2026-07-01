@@ -68,10 +68,10 @@ content/posts/my-topic/
   "title": "Human Agent Workbench",
   "date": "2026-07-03",
   "panes": [
-    { "id": "human", "title": "Human", "file": "human.md", "collapsed": false },
-    { "id": "agent", "title": "Agent", "file": "agent.md", "collapsed": true },
-    { "id": "abstract", "title": "Abstract", "file": "abstract.md", "collapsed": false },
-    { "id": "view", "title": "View", "file": "view.md", "collapsed": false }
+    { "id": "human", "title": "Human", "file": "human.md" },
+    { "id": "agent", "title": "Agent", "file": "agent.md" },
+    { "id": "abstract", "title": "Abstract", "file": "abstract.md" },
+    { "id": "view", "title": "View", "file": "view.md" }
   ],
   "layout": {
     "preset": "1x3+1"

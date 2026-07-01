@@ -10,7 +10,6 @@ export interface RawPostPaneConfig {
   id: PostPaneId;
   title?: string;
   file?: string;
-  collapsed?: boolean;
 }
 
 export interface RawPostLayoutConfig {
@@ -46,7 +45,6 @@ export interface PostPane {
   file: string;
   rawContent: string;
   bodyHtml: string;
-  collapsed: boolean;
   missing: boolean;
 }
 

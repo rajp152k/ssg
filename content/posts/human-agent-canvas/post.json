@@ -3,9 +3,9 @@
   "date": "2026-07-03",
   "panes": [
     { "id": "human", "title": "Human" },
-    { "id": "agent", "title": "Agent Draft", "collapsed": true },
-    { "id": "abstract", "title": "Abstract / Math", "collapsed": false },
-    { "id": "view", "title": "View / Mermaid", "collapsed": false }
+    { "id": "agent", "title": "Agent Draft" },
+    { "id": "abstract", "title": "Abstract / Math" },
+    { "id": "view", "title": "View / Mermaid" }
   ],
   "layout": {
     "preset": "1x3+1"

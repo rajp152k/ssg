@@ -1,11 +1,11 @@
-<!--agent-session title="Draft" collapsed="true"-->
+<!--agent-session title="Draft"-->
 This is agent output for the first pass.
 
 - Clarify thesis
 - Suggest structure
 <!--/agent-session-->
 
-<!--agent-session title="Review" collapsed="false"-->
+<!--agent-session title="Review"-->
 Potential improvements:
 
 1. Add explicit examples.
