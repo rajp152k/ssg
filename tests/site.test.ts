@@ -88,7 +88,7 @@ describe('site build', () => {
     fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{css_import}}{{content}}', 'utf8');
 
     fs.mkdirSync(path.join(templatesDir, 'themes'), { recursive: true });
-    fs.writeFileSync(path.join(templatesDir, 'themes', 'ghostty.css'), 'body { background: #123; }', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'themes', 'tbm.css'), 'body { background: #123; }', 'utf8');
 
     fs.writeFileSync(
       path.join(postsDir, 'sample.md'),
@@ -110,7 +110,7 @@ describe('site build', () => {
         indexTitle: 'Posts',
         indexDescription: 'desc',
         footer: 'Footer',
-        theme: 'themes/ghostty.css',
+        theme: 'themes/tbm.css',
       },
       dev: {
         host: '127.0.0.1',
@@ -122,12 +122,12 @@ describe('site build', () => {
       buildSite(config);
 
       const post = fs.readFileSync(path.join(outputDir, 'themed-post', 'index.html'), 'utf8');
-      expect(post).toContain('<link rel="stylesheet" href="/themes/ghostty.css" />');
+      expect(post).toContain('<link rel="stylesheet" href="/themes/tbm.css" />');
 
       const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
-      expect(index).toContain('<link rel="stylesheet" href="/themes/ghostty.css" />');
+      expect(index).toContain('<link rel="stylesheet" href="/themes/tbm.css" />');
 
-      const themeAsset = fs.readFileSync(path.join(outputDir, 'themes', 'ghostty.css'), 'utf8');
+      const themeAsset = fs.readFileSync(path.join(outputDir, 'themes', 'tbm.css'), 'utf8');
       expect(themeAsset).toContain('background');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });

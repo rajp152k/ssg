@@ -13,7 +13,7 @@ describe('config resolution', () => {
       site: {
         title: 'Test Site',
         author: 'Test Author',
-        theme: 'themes/ghostty.css',
+        theme: 'themes/tbm.css',
       },
       paths: {
         postsDir: 'posts',
@@ -33,7 +33,7 @@ describe('config resolution', () => {
 
       expect(config.site.title).toBe('Test Site');
       expect(config.site.author).toBe('Test Author');
-      expect(config.site.theme).toBe('themes/ghostty.css');
+      expect(config.site.theme).toBe('themes/tbm.css');
       expect(config.postsDir).toBe(path.join(tmp, 'posts'));
       expect(config.templatesDir).toBe(path.join(tmp, 'templates'));
       expect(config.outputDir).toBe(path.join(tmp, 'build'));

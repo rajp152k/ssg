@@ -107,7 +107,7 @@ The config file is now a first-class way to drive templates and defaults.
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 Raj",
-    "theme": "themes/ghostty.css"
+    "theme": "themes/tbm.css"
   },
   "paths": {
     "postsDir": "content/posts",
@@ -140,13 +140,13 @@ You can now wire in a theme stylesheet directly from the config:
 
 ```json
 "site": {
-  "theme": "themes/ghostty.css"
+  "theme": "themes/tbm.css"
 }
 ```
 
 The linked file is loaded from your `templates` directory into the generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
 
-A basic bundled theme is included as `templates/themes/ghostty.css`.
+A basic bundled theme is included as `templates/themes/tbm.css`.
 
 ## Commands
 

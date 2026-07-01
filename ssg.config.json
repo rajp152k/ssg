@@ -8,7 +8,7 @@
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 Raj",
-    "theme": "themes/ghostty.css"
+    "theme": "themes/tbm.css"
   },
   "paths": {
     "postsDir": "content/posts",
