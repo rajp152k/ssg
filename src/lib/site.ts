@@ -373,39 +373,120 @@ function sortPostsByDateDesc(posts: Post[]): Post[] {
   return [...posts].sort((a, b) => b.metadata.date.getTime() - a.metadata.date.getTime());
 }
 
-function buildThemeImport(config: SsgConfig): string {
-  const theme = (config.site.theme ?? '').trim();
+function isHttpOrHttpsUrl(value: string): boolean {
+  return /^[a-z]+:\/\//i.test(value);
+}
 
-  if (!theme) {
+function resolveTemplateAssetHref(
+  config: SsgConfig,
+  configuredAsset: string,
+  assetKind: 'theme' | 'font',
+): string {
+  const source = (configuredAsset ?? '').trim();
+
+  if (!source) {
     return '';
   }
 
-  if (/^[a-z]+:\/\//i.test(theme)) {
-    return `<link rel="stylesheet" href="${theme}" />`;
+  if (isHttpOrHttpsUrl(source)) {
+    return source;
   }
 
-  const safeThemePath = path
-    .normalize(theme)
+  const safeAssetPath = path
+    .normalize(source)
     .replace(/^[./\\]+/, '')
     .replace(/^\/+/, '');
   const templatesRoot = path.resolve(config.templatesDir);
-  const sourceThemePath = path.resolve(config.templatesDir, safeThemePath);
-  const relativeThemePath = path.relative(templatesRoot, sourceThemePath);
+  const sourceAssetPath = path.resolve(config.templatesDir, safeAssetPath);
+  const relativeAssetPath = path.relative(templatesRoot, sourceAssetPath);
 
-  if (relativeThemePath.startsWith(`..${path.sep}`) || relativeThemePath === '..') {
-    throw new Error(`Theme stylesheet path is outside templates directory: ${theme}`);
+  if (relativeAssetPath.startsWith(`..${path.sep}`) || relativeAssetPath === '..') {
+    throw new Error(`${assetKind} path is outside templates directory: ${source}`);
   }
 
-  if (!fs.existsSync(sourceThemePath)) {
-    throw new Error(`Theme stylesheet does not exist: ${theme}`);
+  if (!fs.existsSync(sourceAssetPath)) {
+    throw new Error(`${assetKind} does not exist: ${source}`);
   }
 
-  const outputThemePath = path.resolve(config.outputDir, relativeThemePath);
-  fs.mkdirSync(path.dirname(outputThemePath), { recursive: true });
-  fs.copyFileSync(sourceThemePath, outputThemePath);
+  const outputAssetPath = path.resolve(config.outputDir, relativeAssetPath);
+  fs.mkdirSync(path.dirname(outputAssetPath), { recursive: true });
+  fs.copyFileSync(sourceAssetPath, outputAssetPath);
 
-  const href = `/${relativeThemePath.replace(/\\/g, '/')}`;
+  return `/${relativeAssetPath.replace(/\\/g, '/')}`;
+}
+
+function getFontFormatFromFilename(filename: string): string | null {
+  const normalized = filename.split('?')[0].split('#')[0];
+  const extension = path.extname(normalized).toLowerCase();
+
+  switch (extension) {
+    case '.woff2':
+      return 'woff2';
+    case '.woff':
+      return 'woff';
+    case '.ttf':
+    case '.ttc':
+    case '.otf':
+      return 'truetype';
+    case '.eot':
+      return 'embedded-opentype';
+    case '.svg':
+      return 'svg';
+    default:
+      return null;
+  }
+}
+
+function buildFontFamilyName(fontPath: string): string {
+  const normalized = fontPath.split('?')[0].split('#')[0];
+  return path.basename(normalized).replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' ');
+}
+
+function buildTemplateAssetImport(href: string): string {
   return `<link rel="stylesheet" href="${href}" />`;
+}
+
+function buildThemeImport(config: SsgConfig): string {
+  const href = resolveTemplateAssetHref(config, config.site.theme ?? '', 'theme');
+  return href ? buildTemplateAssetImport(href) : '';
+}
+
+function buildFontImport(config: SsgConfig): string {
+  const source = (config.site.font ?? '').trim();
+  if (!source) {
+    return '';
+  }
+
+  const href = resolveTemplateAssetHref(config, source, 'font');
+  const fontFormat = getFontFormatFromFilename(href);
+
+  if (!fontFormat) {
+    return buildTemplateAssetImport(href);
+  }
+
+  const fontFamily = buildFontFamilyName(source);
+  const cssFontFamily = JSON.stringify(fontFamily);
+
+  return `<style>
+    @font-face {
+      font-family: ${cssFontFamily};
+      src: url("${href}") format("${fontFormat}");
+      font-display: swap;
+    }
+
+    :root {
+      --ssg-font-family: ${cssFontFamily}, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    body,
+    pre,
+    code,
+    .ssg-pane,
+    .ssg-pane__header,
+    .ssg-pane__body {
+      font-family: var(--ssg-font-family);
+    }
+  </style>`;
 }
 
 function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): TemplateContext {
@@ -434,6 +515,7 @@ function renderPostsIndexTemplate(
   template: string,
   config: SsgConfig,
   themeImport: string,
+  fontImport: string,
 ): string {
   const items = posts
     .map((post) => {
@@ -449,6 +531,7 @@ function renderPostsIndexTemplate(
       content: `<ul>${items}</ul>`,
       description: config.site.indexDescription,
       css_import: themeImport,
+      font_import: fontImport,
     }),
   );
 }
@@ -548,6 +631,7 @@ export function buildSite(config: SsgConfig): void {
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
   const themeImport = buildThemeImport(config);
+  const fontImport = buildFontImport(config);
 
   const postSources = collectPostSources(postsDir);
   const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
@@ -564,12 +648,13 @@ export function buildSite(config: SsgConfig): void {
       sync_enabled: post.sync.enabled ? 'true' : 'false',
       sync_source: String(post.sync.source),
       css_import: themeImport,
+      font_import: fontImport,
     });
 
     const pageHtml = renderTemplate(postTemplate, pageContext);
     writePage(outputDir, post.metadata.slug, pageHtml);
   }
 
-  const indexHtml = renderPostsIndexTemplate(posts, indexTemplate, config, themeImport);
+  const indexHtml = renderPostsIndexTemplate(posts, indexTemplate, config, themeImport, fontImport);
   fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml, 'utf8');
 }

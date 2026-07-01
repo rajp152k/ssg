@@ -107,7 +107,8 @@ The config file is now a first-class way to drive templates and defaults.
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 Raj",
-    "theme": "themes/tbm.css"
+    "theme": "themes/tbm.css",
+    "font": "fonts/terminess.css"
   },
   "paths": {
     "postsDir": "content/posts",
@@ -133,6 +134,7 @@ These keys are available as template variables:
 - `{{site_footer}}`
 - `{{site_copyright_year}}` (derived at build time)
 - `{{css_import}}` (optional `<link>` tag for configured `site.theme`)
+- `{{font_import}}` (optional stylesheet or inline font declaration for configured `site.font`)
 
 ## Theming
 
@@ -146,7 +148,17 @@ You can now wire in a theme stylesheet directly from the config:
 
 The linked file is loaded from your `templates` directory into the generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
 
-A basic bundled theme is included as `templates/themes/tbm.css`.
+To layer in a font, set `site.font`:
+
+```json
+"site": {
+  "font": "fonts/terminess.css"
+}
+```
+
+If `site.font` points to a CSS file, it is copied from `templates` and linked in `<head>`. If it points to a font asset (`woff`, `woff2`, `ttf`, `otf`, `eot`, `svg`), the build injects a `@font-face` declaration automatically and applies it site-wide.
+
+A basic bundled theme is included as `templates/themes/tbm.css`, and a starter font file is available at `templates/fonts/terminess.css`.
 
 ## Commands
 

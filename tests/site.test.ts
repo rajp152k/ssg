@@ -134,6 +134,138 @@ describe('site build', () => {
     }
   });
 
+  it('copies configured font css to output and injects it into templates', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-font-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<!doctype html><html><head>{{font_import}}</head><body>{{title}}</body></html>',
+      'utf8',
+    );
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{font_import}}{{content}}', 'utf8');
+
+    fs.mkdirSync(path.join(templatesDir, 'fonts'), { recursive: true });
+    fs.writeFileSync(
+      path.join(templatesDir, 'fonts', 'terminess.css'),
+      ':root { --test-font: true; }',
+      'utf8',
+    );
+
+    fs.writeFileSync(
+      path.join(postsDir, 'sample.md'),
+      '---\ntitle: Fonted Post\ndate: 2026-07-02\n---\n\nFonted output.',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: 'Footer',
+        font: 'fonts/terminess.css',
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      buildSite(config);
+
+      const post = fs.readFileSync(path.join(outputDir, 'fonted-post', 'index.html'), 'utf8');
+      expect(post).toContain('<link rel="stylesheet" href="/fonts/terminess.css" />');
+
+      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
+      expect(index).toContain('<link rel="stylesheet" href="/fonts/terminess.css" />');
+
+      const fontAsset = fs.readFileSync(path.join(outputDir, 'fonts', 'terminess.css'), 'utf8');
+      expect(fontAsset).toContain('--test-font');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('injects inline @font-face when site.font points to a font asset', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-font-asset-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<!doctype html><html><head>{{font_import}}</head><body>{{title}}</body></html>',
+      'utf8',
+    );
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{font_import}}{{content}}', 'utf8');
+
+    fs.mkdirSync(path.join(templatesDir, 'fonts'), { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'fonts', 'Terminess.woff2'), 'fakefont', 'utf8');
+
+    fs.writeFileSync(
+      path.join(postsDir, 'sample.md'),
+      '---\ntitle: Font Asset Post\ndate: 2026-07-02\n---\n\nFont asset output.',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: 'Footer',
+        font: 'fonts/Terminess.woff2',
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      buildSite(config);
+
+      const post = fs.readFileSync(path.join(outputDir, 'font-asset-post', 'index.html'), 'utf8');
+      expect(post).toContain('@font-face');
+      expect(post).toContain('src: url("/fonts/Terminess.woff2") format("woff2")');
+      expect(post).toContain('font-family: "Terminess"');
+
+      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
+      expect(index).toContain('@font-face');
+
+      const fontAsset = fs.readFileSync(path.join(outputDir, 'fonts', 'Terminess.woff2'), 'utf8');
+      expect(fontAsset).toContain('fakefont');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('renders post meta date and content correctly', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-'));
     const postsDir = path.join(tmp, 'content', 'posts');

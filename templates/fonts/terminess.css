@@ -1,0 +1,24 @@
+:root {
+  --site-font-family: 'Terminess', 'Terminess Nerd Font', 'SFMono-Regular', 'Consolas', 'Liberation Mono', Menlo, Monaco, 'Courier New', monospace;
+}
+
+body,
+pre,
+code,
+.ssg-pane,
+.ssg-pane__header,
+.ssg-pane__body {
+  font-family: var(--site-font-family);
+}
+
+/*
+  If you install Terminess on your system, this lets you use it immediately.
+  To bundle the font file(s), copy them into `templates/fonts/` and update this rule
+  to a local @font-face declaration:
+
+  @font-face {
+    font-family: 'Terminess';
+    src: url('Terminess.woff2') format('woff2');
+    font-display: swap;
+  }
+*/
