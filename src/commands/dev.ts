@@ -27,7 +27,6 @@ export function devCommand(options: DevCommandOptions = {}): void {
   const watchPaths = [
     config.postsDir,
     config.templatesDir,
-    path.resolve(projectRoot, 'src'),
   ];
 
   let rebuildTimer: NodeJS.Timeout | null = null;
