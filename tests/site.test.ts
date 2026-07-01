@@ -129,4 +129,86 @@ describe('site build', () => {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
+
+  it('throws when a synced workbench post has mismatched headings', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-sync-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<article>{{workbench_html}}</article>{{workbench_script}}',
+      'utf8',
+    );
+
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+
+    const postDir = path.join(postsDir, 'mismatched-workbench');
+    fs.mkdirSync(postDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(postDir, 'post.json'),
+      JSON.stringify(
+        {
+          title: 'Mismatched Workbench',
+          date: '2026-07-03',
+          panes: [
+            { id: 'human', file: 'human.md', title: 'Human' },
+            { id: 'agent', file: 'agent.md', title: 'Agent' },
+          ],
+          layout: {
+            preset: '1x2',
+          },
+          sync: {
+            enabled: true,
+            source: 'human',
+          },
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+
+    fs.writeFileSync(path.join(postDir, 'human.md'), '# Human Notes\n\n## Problem statement\n\nA shared opening section.\n## Context\n\nShared context.', 'utf8');
+    fs.writeFileSync(
+      path.join(postDir, 'agent.md'),
+      '# Agent Notes\n\n## Different heading\n\nThis does not match.',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: '',
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      expect(() => buildSite(config)).toThrow(
+        /Workbench sync headings differ for post .*mismatched-workbench/,
+      );
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });
+

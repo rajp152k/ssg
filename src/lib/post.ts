@@ -21,6 +21,49 @@ const defaultPaneDefinitions: RawPostPaneConfig[] = [
 
 const FALLBACK_TEXT = '<p><em>No content yet.</em></p>';
 
+function normalizeHeadingText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s-]/g, '')
+    .trim();
+}
+
+function extractHeadingTextFromToken(token: { text?: unknown; tokens?: unknown[] } | undefined): string {
+  if (!token) {
+    return '';
+  }
+
+  const childTokens = token.tokens;
+  if (Array.isArray(childTokens) && childTokens.length > 0) {
+    return childTokens.map((child) => extractHeadingTextFromToken(child as { text?: unknown; tokens?: unknown[] })).join('');
+  }
+
+  if (typeof token.text === 'string') {
+    return token.text;
+  }
+
+  return '';
+}
+
+export function extractHeadingSignatures(markdown: string): string[] {
+  const tokens = marked.lexer(markdown) as unknown[];
+  const headings = tokens
+    .filter((token): token is { type: string; depth: number } => {
+      const candidate = token as { type?: string; depth?: unknown };
+      return candidate.type === 'heading' && typeof candidate.depth === 'number';
+    })
+    .map((token) => {
+      const headingToken = token as { type: string; depth: number };
+      const rawText = extractHeadingTextFromToken(token as { text?: unknown; tokens?: unknown[] });
+      const normalizedText = normalizeHeadingText(rawText);
+      return `${headingToken.depth}:${normalizedText}`;
+    })
+    .filter((heading) => heading.length > 0);
+
+  return headings;
+}
+
 function parseDate(value: string | number | undefined, sourcePath: string): Date {
   if (typeof value === 'undefined') {
     throw new Error(`Missing required date in ${sourcePath}`);

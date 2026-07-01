@@ -1,4 +1,7 @@
-<!--agent-session title="Draft"-->
+# Human Notes
+
+## Problem statement
+
 This is agent output for the first pass.
 
 - Clarify thesis
@@ -6,151 +9,96 @@ This is agent output for the first pass.
 - Maintain side-by-side readability
 - Provide a concise set of checks
 
-The agent pane can mirror the human pane in broad structure while adding alternative phrasing and consistency notes.
+The goal is to keep this pane structurally aligned with the Human pane at the section level.
 
-### Alternative opening
+## Context
 
-For scroll-sync validation, we keep this pane long enough to force independent scrolling.
+The long-form narrative is mirrored to make scroll alignment deterministic.
 
-Long content matters because when both panes exceed the viewport, the sync handler can be observed against a nontrivial document height.
+The headings are intentionally matched so pane sync can move to corresponding sections directly.
 
-### Detailed review section
+### 1) Framing
 
-Potential improvements:
+When co-authoring, one pane can hold the primary draft while another pane records feedback, alternatives, and consistency notes.
 
-1. Add explicit examples.
-2. Keep terminology consistent.
-3. Preserve a clear thesis sentence near the top.
-4. Add one short summary after each major section.
-5. Validate that transitions between sections are not abrupt.
+A useful pattern is:
 
-### Alignment strategy
+- Keep each major thought in its own section.
+- Add examples and edge cases.
+- Preserve historical review notes in a second pane.
 
-A practical strategy is to keep analogous headings between panes.
+### 2) Example breakdown
 
-For instance, map this sequence:
+Suppose we have three independent ideas.
 
-- Problem statement
-- Context
-- Framing
-- Example breakdown
-- Practical notes
+First idea: separate content generation from review commentary.
 
-to both panes so synced scrolling appears natural.
+Second idea: keep all shared facts in one place.
 
-### More content for deep scrolling
+Third idea: describe assumptions and guardrails.
 
-Here is a repeated stress test block:
+### 3) Deeper explanation
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.
+The agent pane can remain aligned through heading parity while offering alternate phrasing.
 
-Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.
+When a reader scrolls the Human pane, the Agent pane should move to this same semantic heading.
 
-Proin porttitor, orci nec nonummy molestie, enim est eleifend mi, non fermentum diam nisl sit amet erat.
+### 4) Additional detail
 
-Nulla facilisi. Integer lacinia sollicitudin massa. Cras metus. Sed aliquet risus a tortor.
+Let's include several lines so content continues:
 
-### Validation checklist
+1. Start with thesis and motivation.
+2. Elaborate on constraints and assumptions.
+3. Describe methodology.
+4. Call out caveats.
+5. Mention next steps.
 
-- [ ] Is sync enabled?
-- [ ] Is source pane set to `human`?
-- [ ] Does the scroll ratio clamp correctly at top and bottom?
-- [ ] Are both panes independently scrollable?
-- [ ] Does heavy content in one pane still synchronize reasonably in the other?
+Each step can itself be expanded into a paragraph to increase vertical height.
 
-### Observability notes
+### 5) Step-by-step expansion
 
-Try multiple browser widths:
+Step 1: define the user story and success criteria.
 
-- Narrow windows reduce available pane height and make scroll behavior obvious.
-- Wider layouts still work but need enough text to overflow vertically.
+A post is done when structure is stable and sync remains consistent while reading.
 
-### Additional filler
+Step 2: define the review boundary.
 
-When the page loads, you should be able to scroll slightly and see synchronized movement.
+Agent contributions should be auditable and explicitly labeled.
 
-If the ratio mapping is working, moving near the end of one pane should move the other near its own end.
+Step 3: define visual rhythm.
 
-Add more paragraphs:
+Headers, bullets, and spacing help orient reviewers.
 
-The objective is not pixel-perfect alignment; it is stable and monotonic coupling.
+### 6) Practical notes
 
-Scroll-synced panes are useful when the user wants to inspect both the authored and suggested text simultaneously.
+- Keep consistent heading depth across panes when possible.
+- Put related points in corresponding sections.
+- Keep this test post intentionally long.
 
-Even if exact line correspondence is not perfect, matching the relative progression through each document is often enough.
+### 7) Final stretch
 
-### Closing notes
+Longer content keeps scroll bars available even after viewport adjustments.
 
-This section continues the same cadence as the human notes and keeps the test post tall.
+If this section is visible, the two panes have progressed far enough for stable comparison.
 
-We can always refine the mapping logic later if section-level anchors prove better than ratio-based syncing.
+### 8) Closing
 
-One final check: ensure the two-pane sync still responds if you drag inside the second pane too and then jump back.
+For stable sync, keep comparable section lengths in both panes.
 
-The final lines are just here to make sure this pane clearly overflows on most screen sizes.
+Continue adding if needed:
 
-Add more closing content:
+The system should feel natural to scan in both panes without abrupt jumps.
 
-The final stretch is intentionally long to preserve overflow.
+A stable sync case should expose drift quickly if heading mapping changes.
 
-Another paragraph.
+For example, if one pane uses short lines and another dense text, matching headings should still keep semantic alignment.
 
-Another one, right here.
+### 9) Last check
 
-Another one, just to be sure.
+I can keep typing to force more vertical space.
 
-Yet another closing sentence.
+The final part is intentionally verbose so both panes still have enough height to test whether heading-based synchronization is functioning.
 
-That should be enough for robust testing.
+### 10) End
 
-End of agent pane test content.
-<!--/agent-session-->
-
-<!--agent-session title="Review"-->
-Potential improvements:
-
-1. Add explicit examples.
-2. Keep terminology consistent.
-3. Add one tiny glossary.
-4. Keep section nesting stable.
-5. Make sure the test post is reproducible after rebuilds.
-
-### Supplemental review block
-
-This second block intentionally also has enough length.
-
-When testing sync, use this pane as the secondary target. If you scroll far enough here, the human pane should respond by ratio.
-
-A few more lines:
-
-- Keep headings semantic.
-- Avoid mixing unrelated digressions.
-- Preserve markdown structure across both panes.
-
-### End of review session
-
-Use this as a final sanity check for both scroll bars and the event listeners.
-
-If both panes move together when dragging one scrollbar, test is successful.
-
-If not, confirm that sync config is still:
-
-```json
-{
-  "sync": {
-    "enabled": true,
-    "source": "human"
-  }
-}
-```
-
-And that this post remains using the two-pane layout.
-
-This final note ensures the review block is nontrivial.
-
-Let's add more:
-
-The more text we include, the safer this regression test becomes.
-
-End.
-<!--/agent-session-->
+That's all for this structured block. If the headings match, alignment should stay coherent.

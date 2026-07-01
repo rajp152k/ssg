@@ -2,7 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Post, PostLayout } from '../types';
 import { renderTemplate, formatDate } from './template';
-import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
+import {
+  collectPostSources,
+  createWorkAreaStyle,
+  extractHeadingSignatures,
+  loadPost,
+} from './post';
 import type { SsgConfig } from '../config';
 
 type TemplateContext = Record<string, string>;
@@ -19,58 +24,21 @@ const WORKBENCH_SCRIPT = `
   const syncSource = workbench.dataset.syncSource || 'human';
   const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
   const paneById = new Map();
-  const headingStateById = new Map();
+  const headingRecordsById = new Map();
 
-  function normalizeHeadingText(value) {
-    return String(value || '')
-      .toLowerCase()
-      .replace(/\\s+/g, ' ')
-      .replace(/[^\\w\\s-]/g, '')
-      .trim();
-  }
+  function collectHeadings(content) {
+    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(
+      (heading) => !heading.closest('.agent-session'),
+    );
 
-  function buildHeadingState(content) {
-    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
-    const occurrenceByKey = new Map();
-
-    const records = headings
-      .map((heading) => {
-        const level = heading.tagName.toLowerCase();
-        const text = normalizeHeadingText(heading.textContent);
-        if (!text) {
-          return null;
-        }
-
-        const index = (occurrenceByKey.get(level + '|' + text) || 0) + 1;
-        occurrenceByKey.set(level + '|' + text, index);
-        const key = level + '|' + text + '#' + index;
-        return {
-          key,
-          text,
-          top: heading.offsetTop,
-        };
-      })
-      .filter(Boolean);
-
-    const byKey = new Map();
-    const byText = new Map();
-
-    for (const record of records) {
-      byKey.set(record.key, record.top);
-      if (!byText.has(record.text)) {
-        byText.set(record.text, record.top);
-      }
-    }
-
-    return {
-      records,
-      byKey,
-      byText,
-    };
+    return headings.map((heading) => ({
+      top: heading.offsetTop,
+    }));
   }
 
   function refreshHeadingState() {
-    headingStateById.clear();
+    headingRecordsById.clear();
+
     for (const pane of paneElements) {
       const paneId = pane.getAttribute('data-pane-id');
       if (!paneId) {
@@ -82,19 +50,18 @@ const WORKBENCH_SCRIPT = `
         continue;
       }
 
-      headingStateById.set(paneId, buildHeadingState(content));
+      headingRecordsById.set(paneId, collectHeadings(content));
     }
   }
 
-  function findActiveHeading(records, scrollTop) {
-    for (let index = records.length - 1; index >= 0; index--) {
-      const record = records[index];
-      if (scrollTop + 16 >= record.top) {
-        return record;
+  function findActiveHeadingIndex(headings, scrollTop) {
+    for (let index = headings.length - 1; index >= 0; index--) {
+      if (scrollTop + 16 >= headings[index].top) {
+        return index;
       }
     }
 
-    return null;
+    return -1;
   }
 
   for (const pane of paneElements) {
@@ -114,24 +81,29 @@ const WORKBENCH_SCRIPT = `
 
     const sourcePane = paneById.get(syncSource);
     const sourceContent = sourcePane?.querySelector('[data-pane-content]');
-    const sourceState = headingStateById.get(syncSource);
-    if (!(sourceContent instanceof HTMLElement) || !sourceState) {
+    const sourceHeadings = headingRecordsById.get(syncSource);
+
+    if (!(sourceContent instanceof HTMLElement) || !Array.isArray(sourceHeadings)) {
       return;
     }
 
-    const sourceMax = sourceContent.scrollHeight - sourceContent.clientHeight;
-    if (sourceMax <= 0) {
+    if (sourceHeadings.length === 0) {
       return;
     }
 
-    const sourceActiveHeading = sourceState.records.length
-      ? findActiveHeading(sourceState.records, sourceContent.scrollTop)
-      : null;
-
-    const ratio = sourceContent.scrollTop / sourceMax;
+    const activeHeadingIndex = findActiveHeadingIndex(sourceHeadings, sourceContent.scrollTop);
+    if (activeHeadingIndex < 0) {
+      return;
+    }
 
     for (const pane of paneElements) {
       if (pane === sourcePane) {
+        continue;
+      }
+
+      const paneId = pane.getAttribute('data-pane-id');
+      const targetHeadings = headingRecordsById.get(paneId || '');
+      if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
         continue;
       }
 
@@ -140,24 +112,12 @@ const WORKBENCH_SCRIPT = `
         continue;
       }
 
-      const targetState = headingStateById.get(pane.getAttribute('data-pane-id'));
-      if (sourceActiveHeading && targetState) {
-        const maxScroll = content.scrollHeight - content.clientHeight;
-        const targetTop = targetState.byKey.get(sourceActiveHeading.key)
-          ?? targetState.byText.get(sourceActiveHeading.text);
-
-        if (typeof targetTop === 'number' && maxScroll > 0) {
-          content.scrollTop = Math.max(0, Math.min(maxScroll, targetTop));
-          continue;
-        }
-      }
-
       const maxScroll = content.scrollHeight - content.clientHeight;
       if (maxScroll <= 0) {
         continue;
       }
 
-      content.scrollTop = Math.round(ratio * maxScroll);
+      content.scrollTop = Math.max(0, Math.min(maxScroll, targetHeadings[activeHeadingIndex].top));
     }
   };
 
@@ -179,7 +139,7 @@ const WORKBENCH_SCRIPT = `
   const sourcePane = paneById.get(syncSource);
   const sourceContent = sourcePane?.querySelector('[data-pane-content]');
   if (sourceContent instanceof HTMLElement && syncEnabled) {
-    sourceContent.addEventListener('scroll', frameSync);
+    sourceContent.addEventListener('scroll', frameSync, { passive: true });
   }
 })();
 </script>
@@ -289,6 +249,70 @@ function paneStyleMap(layout: PostLayout): Record<string, string> {
   return map;
 }
 
+function normalizeSyncHeadings(headings: string[]): string[] {
+  return headings.filter((heading) => heading.length > 0);
+}
+
+function compareStringArrays(left: string[], right: string[]): { equal: boolean; firstDifference?: number } {
+  if (left.length !== right.length) {
+    return {
+      equal: false,
+      firstDifference: Math.min(left.length, right.length),
+    };
+  }
+
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) {
+      return {
+        equal: false,
+        firstDifference: index,
+      };
+    }
+  }
+
+  return { equal: true };
+}
+
+function validateWorkbenchHeadings(post: Post): void {
+  if (!post.sync.enabled) {
+    return;
+  }
+
+  if (post.panes.length <= 1) {
+    return;
+  }
+
+  const sourcePaneId = String(post.sync.source);
+  const sourcePane = post.panes.find((pane) => String(pane.id) === sourcePaneId);
+  if (!sourcePane) {
+    throw new Error(`Workbench sync source "${sourcePaneId}" was not found in post: ${post.metadata.source}`);
+  }
+
+  const sourceHeadings = normalizeSyncHeadings(extractHeadingSignatures(sourcePane.rawContent));
+  if (sourceHeadings.length === 0) {
+    throw new Error(`Workbench sync requires matching headings in source pane "${sourcePaneId}", but none were found for post: ${post.metadata.source}`);
+  }
+
+  for (const pane of post.panes) {
+    if (pane === sourcePane) {
+      continue;
+    }
+
+    const targetHeadings = normalizeSyncHeadings(extractHeadingSignatures(pane.rawContent));
+    const result = compareStringArrays(sourceHeadings, targetHeadings);
+    if (result.equal) {
+      continue;
+    }
+
+    const index = result.firstDifference ?? 0;
+    const expected = sourceHeadings[index] || '<missing>';
+    const actual = targetHeadings[index] || '<missing>';
+    throw new Error(
+      `Workbench sync headings differ for post ${post.metadata.source} between "${sourcePaneId}" and "${String(pane.id)}" at index ${index}: expected "${expected}", got "${actual}"`,
+    );
+  }
+}
+
 function buildWorkbenchMarkup(post: Post): string {
   const paneIds = post.panes.map((pane) => String(pane.id));
   const normalizedLayout = normalizeLayoutAreas(post.layout, paneIds);
@@ -365,6 +389,8 @@ export function buildSite(config: SsgConfig): void {
   const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
 
   for (const post of posts) {
+    validateWorkbenchHeadings(post);
+
     const pageContext = buildTemplateContext(config, {
       title: post.metadata.title,
       date: formatDate(post.metadata.date),

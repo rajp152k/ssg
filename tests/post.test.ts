@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { describe, expect, it } from 'vitest';
-import { collectMarkdownFiles, collectPostSources, loadPost } from '../src/lib/post';
+import { collectMarkdownFiles, collectPostSources, extractHeadingSignatures, loadPost } from '../src/lib/post';
 
 function createTempFile(filePath: string, content: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -193,5 +193,17 @@ From filename title.`,
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
+  });
+
+  it('extracts and normalizes heading signatures from markdown', () => {
+    const signatures = extractHeadingSignatures(
+      '# Human Notes\n\n## Problem statement\n### A heading with *emphasis*\n\n',
+    );
+
+    expect(signatures).toEqual([
+      '1:human notes',
+      '2:problem statement',
+      '3:a heading with emphasis',
+    ]);
   });
 });

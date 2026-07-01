@@ -86,6 +86,14 @@ Supported pane presets:
 
 When no layout is configured, `ssg` uses `1x2`.
 
+For synced workbench posts, heading alignment is enforced during `build`:
+
+- headings are extracted from each pane markdown source,
+- headings must match exactly (same level and normalized text sequence),
+- sync source defaults to `human` and must exist.
+
+If they do not match, the build fails with a clear mismatch error.
+
 `src/lib/post.ts` normalizes both forms into a unified `Post` model so templates can render all posts consistently.
 ## Config (`ssg.config.json`)
 
