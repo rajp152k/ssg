@@ -130,7 +130,7 @@ describe('site build', () => {
     }
   });
 
-  it('throws when a synced workbench post has mismatched headings', () => {
+  it('builds workbench posts even when headings differ between panes', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-sync-'));
     const postsDir = path.join(tmp, 'content', 'posts');
     const templatesDir = path.join(tmp, 'templates');
@@ -203,9 +203,9 @@ describe('site build', () => {
     };
 
     try {
-      expect(() => buildSite(config)).toThrow(
-        /Workbench sync headings differ for post .*mismatched-workbench/,
-      );
+      expect(() => buildSite(config)).not.toThrow();
+      const post = fs.readFileSync(path.join(outputDir, 'mismatched-workbench', 'index.html'), 'utf8');
+      expect(post).toContain('id="ssg-workbench"');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

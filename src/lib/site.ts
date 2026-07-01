@@ -2,12 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Post, PostLayout } from '../types';
 import { renderTemplate, formatDate } from './template';
-import {
-  collectPostSources,
-  createWorkAreaStyle,
-  extractHeadingSignatures,
-  loadPost,
-} from './post';
+import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
 import type { SsgConfig } from '../config';
 
 type TemplateContext = Record<string, string>;
@@ -440,70 +435,6 @@ function paneStyleMap(layout: PostLayout): Record<string, string> {
   return map;
 }
 
-function normalizeSyncHeadings(headings: string[]): string[] {
-  return headings.filter((heading) => heading.length > 0);
-}
-
-function compareStringArrays(left: string[], right: string[]): { equal: boolean; firstDifference?: number } {
-  if (left.length !== right.length) {
-    return {
-      equal: false,
-      firstDifference: Math.min(left.length, right.length),
-    };
-  }
-
-  for (let index = 0; index < left.length; index++) {
-    if (left[index] !== right[index]) {
-      return {
-        equal: false,
-        firstDifference: index,
-      };
-    }
-  }
-
-  return { equal: true };
-}
-
-function validateWorkbenchHeadings(post: Post): void {
-  if (!post.sync.enabled) {
-    return;
-  }
-
-  if (post.panes.length <= 1) {
-    return;
-  }
-
-  const sourcePaneId = String(post.sync.source);
-  const sourcePane = post.panes.find((pane) => String(pane.id) === sourcePaneId);
-  if (!sourcePane) {
-    throw new Error(`Workbench sync source "${sourcePaneId}" was not found in post: ${post.metadata.source}`);
-  }
-
-  const sourceHeadings = normalizeSyncHeadings(extractHeadingSignatures(sourcePane.rawContent));
-  if (sourceHeadings.length === 0) {
-    throw new Error(`Workbench sync requires matching headings in source pane "${sourcePaneId}", but none were found for post: ${post.metadata.source}`);
-  }
-
-  for (const pane of post.panes) {
-    if (pane === sourcePane) {
-      continue;
-    }
-
-    const targetHeadings = normalizeSyncHeadings(extractHeadingSignatures(pane.rawContent));
-    const result = compareStringArrays(sourceHeadings, targetHeadings);
-    if (result.equal) {
-      continue;
-    }
-
-    const index = result.firstDifference ?? 0;
-    const expected = sourceHeadings[index] || '<missing>';
-    const actual = targetHeadings[index] || '<missing>';
-    throw new Error(
-      `Workbench sync headings differ for post ${post.metadata.source} between "${sourcePaneId}" and "${String(pane.id)}" at index ${index}: expected "${expected}", got "${actual}"`,
-    );
-  }
-}
-
 function buildWorkbenchMarkup(post: Post): string {
   const paneIds = post.panes.map((pane) => String(pane.id));
   const normalizedLayout = normalizeLayoutAreas(post.layout, paneIds);
@@ -580,8 +511,6 @@ export function buildSite(config: SsgConfig): void {
   const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
 
   for (const post of posts) {
-    validateWorkbenchHeadings(post);
-
     const pageContext = buildTemplateContext(config, {
       title: post.metadata.title,
       date: formatDate(post.metadata.date),
