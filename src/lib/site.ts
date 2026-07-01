@@ -27,10 +27,12 @@ const WORKBENCH_SCRIPT = `
   const headingRecordsById = new Map();
   const syncAnimationsById = new Map();
   const pendingSyncTimerBySourceId = new Map();
+  const syncSuppressionByPaneId = new Map();
 
   const HEADING_OFFSET = 16;
   const SYNC_SCROLL_DURATION = 140;
   const SYNC_DEBOUNCE_MS = 90;
+  const SYNC_SUPPRESSION_MS = 120;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -139,6 +141,7 @@ const WORKBENCH_SCRIPT = `
         state.raf = window.requestAnimationFrame(step);
       } else {
         syncAnimationsById.delete(paneId);
+        setPaneSyncSuppressed(paneId);
       }
     };
 
@@ -230,6 +233,28 @@ const WORKBENCH_SCRIPT = `
     pendingSyncTimerBySourceId.set(sourceId, timer);
   };
 
+  const setPaneSyncSuppressed = (paneId) => {
+    syncSuppressionByPaneId.set(paneId, performance.now() + SYNC_SUPPRESSION_MS);
+  };
+
+  const clearPaneSyncSuppression = (paneId) => {
+    syncSuppressionByPaneId.delete(paneId);
+  };
+
+  const isPaneSyncSuppressed = (paneId) => {
+    const until = syncSuppressionByPaneId.get(paneId);
+    if (typeof until !== 'number') {
+      return false;
+    }
+
+    if (until <= performance.now()) {
+      syncSuppressionByPaneId.delete(paneId);
+      return false;
+    }
+
+    return true;
+  };
+
   refreshHeadingState();
   window.addEventListener('resize', refreshHeadingState);
 
@@ -240,6 +265,7 @@ const WORKBENCH_SCRIPT = `
     }
 
     syncAnimationsById.delete(paneId);
+    clearPaneSyncSuppression(paneId);
   };
 
   const cancelPendingSync = (sourceId) => {
@@ -267,6 +293,10 @@ const WORKBENCH_SCRIPT = `
 
         const state = syncAnimationsById.get(paneId);
         if (state?.isAnimating) {
+          return;
+        }
+
+        if (isPaneSyncSuppressed(paneId)) {
           return;
         }
 
