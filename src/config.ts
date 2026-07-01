@@ -104,10 +104,9 @@ export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
   const outputDir = path.resolve(configBaseDir, options.outputDir ?? userConfig.paths?.outputDir ?? defaultPaths.outputDir);
   const templatesDir = path.resolve(configBaseDir, options.templatesDir ?? userConfig.paths?.templatesDir ?? defaultPaths.templatesDir);
 
-  const cliPort = options.port ? parseInt(options.port, 10) : undefined;
-  const configuredPort = Number.isInteger(cliPort)
-    ? (cliPort as number)
-    : undefined;
+  const cliPort = options.port !== undefined ? parseInt(options.port, 10) : undefined;
+  const hasCliPort = typeof cliPort === 'number' && Number.isInteger(cliPort);
+
 
   return {
     sourceDir: cwd,
@@ -120,8 +119,8 @@ export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
     },
     dev: {
       host: options.host ?? userConfig.dev?.host ?? defaultConfig.dev.host,
-      port: Number.isInteger(configuredPort)
-        ? configuredPort
+      port: hasCliPort
+        ? cliPort
         : (userConfig.dev?.port ?? defaultConfig.dev.port),
     },
   };
