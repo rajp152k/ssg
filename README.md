@@ -106,7 +106,7 @@ The config file is now a first-class way to drive templates and defaults.
     "baseUrl": "https://yetanotherraj.com",
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
-    "footer": "© 2026 Raj",
+    "footer": "(C) {{site_copyright_year}} 'The Raj'",
     "theme": "themes/tbm.css",
     "font": "fonts/terminess.css",
     "assistant": "his AI"

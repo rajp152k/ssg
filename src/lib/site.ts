@@ -497,7 +497,6 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
     site_author: config.site.author,
     site_index_title: config.site.indexTitle,
     site_index_description: config.site.indexDescription,
-    site_footer: config.site.footer,
     site_copyright_year: year,
     author: config.site.author,
     assistant: config.site.assistant ?? 'his AI',
@@ -506,8 +505,14 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
     site_url: config.site.baseUrl,
   };
 
+  const siteFooter = renderTemplate(config.site.footer, {
+    ...baseContext,
+    site_copyright_year: year,
+  });
+
   return {
     ...baseContext,
+    site_footer: siteFooter,
     ...overrides,
   };
 }
