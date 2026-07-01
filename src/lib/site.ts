@@ -26,10 +26,11 @@ const WORKBENCH_SCRIPT = `
   const paneContentById = new Map();
   const headingRecordsById = new Map();
   const syncAnimationsById = new Map();
-  const lastHeadingIndexBySourceId = new Map();
+  const pendingSyncTimerBySourceId = new Map();
 
   const HEADING_OFFSET = 16;
-  const SYNC_SCROLL_DURATION = 160;
+  const SYNC_SCROLL_DURATION = 140;
+  const SYNC_DEBOUNCE_MS = 90;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -47,7 +48,6 @@ const WORKBENCH_SCRIPT = `
 
   function refreshHeadingState() {
     headingRecordsById.clear();
-    lastHeadingIndexBySourceId.clear();
 
     for (const pane of paneElements) {
       const paneId = pane.getAttribute('data-pane-id');
@@ -73,6 +73,25 @@ const WORKBENCH_SCRIPT = `
     }
 
     return -1;
+  }
+
+  function buildTargetTop(sourceHeadings, targetHeadings, sourceTop, activeHeadingIndex) {
+    const currentSourceHeading = sourceHeadings[activeHeadingIndex];
+    const nextSourceHeading = sourceHeadings[activeHeadingIndex + 1];
+    const currentTargetHeading = targetHeadings[activeHeadingIndex];
+    const nextTargetHeading = targetHeadings[activeHeadingIndex + 1];
+
+    if (!nextSourceHeading || !nextTargetHeading) {
+      return currentTargetHeading.top;
+    }
+
+    const sourceSpan = nextSourceHeading.top - currentSourceHeading.top;
+    if (sourceSpan <= 0) {
+      return currentTargetHeading.top;
+    }
+
+    const sourceProgress = clamp((sourceTop - currentSourceHeading.top) / sourceSpan, 0, 1);
+    return currentTargetHeading.top + sourceProgress * (nextTargetHeading.top - currentTargetHeading.top);
   }
 
   function easeInOutQuad(progress) {
@@ -107,6 +126,7 @@ const WORKBENCH_SCRIPT = `
       from: content.scrollTop,
       startTime: performance.now(),
       raf: 0,
+      isAnimating: true,
     };
 
     const step = (timestamp) => {
@@ -123,6 +143,7 @@ const WORKBENCH_SCRIPT = `
     };
 
     state.raf = window.requestAnimationFrame(step);
+    state.isAnimating = true;
     syncAnimationsById.set(paneId, state);
   }
 
@@ -156,12 +177,6 @@ const WORKBENCH_SCRIPT = `
       return;
     }
 
-    const lastIndex = lastHeadingIndexBySourceId.get(sourceId);
-    if (lastIndex === activeHeadingIndex) {
-      return;
-    }
-    lastHeadingIndexBySourceId.set(sourceId, activeHeadingIndex);
-
     for (const pane of paneElements) {
       if (pane === sourcePane) {
         continue;
@@ -187,36 +202,54 @@ const WORKBENCH_SCRIPT = `
         continue;
       }
 
-      const targetTop = targetHeadings[activeHeadingIndex].top;
+      const targetTop = buildTargetTop(
+        sourceHeadings,
+        targetHeadings,
+        sourceScrollTop + HEADING_OFFSET,
+        activeHeadingIndex,
+      );
       scrollPaneToIndex(paneId, content, targetTop);
     }
   };
 
-  const frameSync = (() => {
-    let scheduled = false;
-    let pendingSource = null;
+  const scheduleSync = (sourceId) => {
+    if (typeof sourceId !== 'string' || !syncEnabled) {
+      return;
+    }
 
-    return (sourceId) => {
-      if (typeof sourceId !== 'string') {
-        return;
-      }
+    const prior = pendingSyncTimerBySourceId.get(sourceId);
+    if (typeof prior === 'number') {
+      clearTimeout(prior);
+    }
 
-      pendingSource = sourceId;
-      if (scheduled) {
-        return;
-      }
+    const timer = window.setTimeout(() => {
+      pendingSyncTimerBySourceId.delete(sourceId);
+      applySync(sourceId);
+    }, SYNC_DEBOUNCE_MS);
 
-      scheduled = true;
-      window.requestAnimationFrame(() => {
-        scheduled = false;
-        applySync(pendingSource);
-        pendingSource = null;
-      });
-    };
-  })();
+    pendingSyncTimerBySourceId.set(sourceId, timer);
+  };
 
   refreshHeadingState();
   window.addEventListener('resize', refreshHeadingState);
+
+  const cancelSyncAnimation = (paneId) => {
+    const state = syncAnimationsById.get(paneId);
+    if (state?.raf) {
+      cancelAnimationFrame(state.raf);
+    }
+
+    syncAnimationsById.delete(paneId);
+  };
+
+  const cancelPendingSync = (sourceId) => {
+    const prior = pendingSyncTimerBySourceId.get(sourceId);
+    if (typeof prior === 'number') {
+      clearTimeout(prior);
+    }
+
+    pendingSyncTimerBySourceId.delete(sourceId);
+  };
 
   for (const pane of paneElements) {
     const paneId = pane.getAttribute('data-pane-id');
@@ -233,12 +266,33 @@ const WORKBENCH_SCRIPT = `
         }
 
         const state = syncAnimationsById.get(paneId);
-        if (state?.raf) {
-          cancelAnimationFrame(state.raf);
+        if (state?.isAnimating) {
+          return;
         }
 
-        syncAnimationsById.delete(paneId);
-        frameSync(paneId);
+        scheduleSync(paneId);
+      },
+      { passive: true },
+    );
+
+    content.addEventListener(
+      'wheel',
+      () => {
+        if (!syncEnabled) {
+          return;
+        }
+
+        cancelSyncAnimation(paneId);
+        cancelPendingSync(paneId);
+      },
+      { passive: true },
+    );
+
+    content.addEventListener(
+      'mousedown',
+      () => {
+        cancelSyncAnimation(paneId);
+        cancelPendingSync(paneId);
       },
       { passive: true },
     );
