@@ -11,5 +11,6 @@ This repo starts with a practical plan and will evolve toward a production-capab
 
 ## Status
 - Bootstrap phase: planning and architecture baseline
+- CI is now set up for repository validation (plan/repo basics)
 - Next: implement a minimal TypeScript-powered MVP generator
 
