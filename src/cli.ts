@@ -3,12 +3,12 @@ import { devCommand } from './commands/dev';
 
 function printUsage(): void {
   console.log(`Usage:
-  npm run build [-- --postsDir=... --outDir=... --templatesDir=...]
-  npm run dev [-- --postsDir=... --outDir=... --templatesDir=... --port=3000]
+  npm run build [-- --config=ssg.config.json --postsDir=... --outDir=... --templatesDir=...]
+  npm run dev [-- --config=ssg.config.json --postsDir=... --outDir=... --templatesDir=... --host=127.0.0.1 --port=3000]
 
 Commands:
   build       Build the site from markdown posts.
-  dev         Build and run local server with file watching + live reload.
+  dev         Build and run local server with watch + live reload.
 `);
 }
 
@@ -26,12 +26,14 @@ function main(): void {
   const postsDir = parseArg('postsDir', args);
   const outDir = parseArg('outDir', args);
   const templatesDir = parseArg('templatesDir', args);
+  const configPath = parseArg('config', args);
 
   if (command === 'build') {
     buildCommand({
       postsDir,
       outputDir: outDir,
       templatesDir,
+      configPath,
     });
     return;
   }
@@ -44,6 +46,7 @@ function main(): void {
       postsDir,
       outputDir: outDir,
       templatesDir,
+      configPath,
       port,
       host,
     });

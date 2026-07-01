@@ -4,10 +4,7 @@ import path from 'node:path';
 import { buildSite } from '../lib/site';
 import { resolveConfig, type CliConfigOptions, type SsgConfig } from '../config';
 
-interface DevOptions extends CliConfigOptions {
-  port?: string;
-  host?: string;
-}
+interface DevOptions extends CliConfigOptions {}
 
 const LIVE_RELOAD_PATH = '/__ssg__/events';
 
@@ -15,15 +12,14 @@ export interface DevCommandOptions extends DevOptions {}
 
 export function devCommand(options: DevCommandOptions = {}): void {
   const config = resolveConfig(options);
-  const host = options.host ?? '127.0.0.1';
-  const parsedPort = parseInt(options.port ?? '3000', 10);
-  const port = Number.isNaN(parsedPort) ? 3000 : parsedPort;
+  const host = config.dev.host;
+  const port = config.dev.port;
 
   const clients = new Set<http.ServerResponse>();
   const watchers: fs.FSWatcher[] = [];
 
   const projectRoot = process.cwd();
-  const outputDir = path.resolve(projectRoot, config.outputDir);
+  const outputDir = config.outputDir;
   const watchPaths = [
     config.postsDir,
     config.templatesDir,
