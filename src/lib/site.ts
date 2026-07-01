@@ -21,10 +21,11 @@ const WORKBENCH_SCRIPT = `
   }
 
   const syncEnabled = workbench.dataset.syncEnabled === 'true';
-  const syncSource = workbench.dataset.syncSource || 'human';
   const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
   const paneById = new Map();
+  const paneContentById = new Map();
   const headingRecordsById = new Map();
+  let isApplyingSync = false;
 
   function collectHeadings(content) {
     const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(
@@ -50,6 +51,7 @@ const WORKBENCH_SCRIPT = `
         continue;
       }
 
+      paneContentById.set(paneId, content);
       headingRecordsById.set(paneId, collectHeadings(content));
     }
   }
@@ -71,19 +73,16 @@ const WORKBENCH_SCRIPT = `
     }
   }
 
-  refreshHeadingState();
-  window.addEventListener('resize', refreshHeadingState);
-
-  const applySync = () => {
-    if (!syncEnabled) {
+  const applySync = (sourceId) => {
+    if (!syncEnabled || isApplyingSync || typeof sourceId !== 'string') {
       return;
     }
 
-    const sourcePane = paneById.get(syncSource);
-    const sourceContent = sourcePane?.querySelector('[data-pane-content]');
-    const sourceHeadings = headingRecordsById.get(syncSource);
+    const sourceContent = paneContentById.get(sourceId);
+    const sourceHeadings = headingRecordsById.get(sourceId);
+    const sourcePane = paneById.get(sourceId);
 
-    if (!(sourceContent instanceof HTMLElement) || !Array.isArray(sourceHeadings)) {
+    if (!(sourceContent instanceof HTMLElement) || !Array.isArray(sourceHeadings) || !sourcePane) {
       return;
     }
 
@@ -96,34 +95,50 @@ const WORKBENCH_SCRIPT = `
       return;
     }
 
-    for (const pane of paneElements) {
-      if (pane === sourcePane) {
-        continue;
-      }
+    isApplyingSync = true;
+    try {
+      for (const pane of paneElements) {
+        if (pane === sourcePane) {
+          continue;
+        }
 
-      const paneId = pane.getAttribute('data-pane-id');
-      const targetHeadings = headingRecordsById.get(paneId || '');
-      if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
-        continue;
-      }
+        const paneId = pane.getAttribute('data-pane-id');
+        if (!paneId) {
+          continue;
+        }
 
-      const content = pane.querySelector('[data-pane-content]');
-      if (!(content instanceof HTMLElement)) {
-        continue;
-      }
+        const targetHeadings = headingRecordsById.get(paneId);
+        if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
+          continue;
+        }
 
-      const maxScroll = content.scrollHeight - content.clientHeight;
-      if (maxScroll <= 0) {
-        continue;
-      }
+        const content = pane.querySelector('[data-pane-content]');
+        if (!(content instanceof HTMLElement)) {
+          continue;
+        }
 
-      content.scrollTop = Math.max(0, Math.min(maxScroll, targetHeadings[activeHeadingIndex].top));
+        const maxScroll = content.scrollHeight - content.clientHeight;
+        if (maxScroll <= 0) {
+          continue;
+        }
+
+        content.scrollTop = Math.max(0, Math.min(maxScroll, targetHeadings[activeHeadingIndex].top));
+      }
+    } finally {
+      isApplyingSync = false;
     }
   };
 
   const frameSync = (() => {
     let scheduled = false;
-    return () => {
+    let pendingSource = null;
+
+    return (sourceId) => {
+      if (typeof sourceId !== 'string') {
+        return;
+      }
+
+      pendingSource = sourceId;
       if (scheduled) {
         return;
       }
@@ -131,15 +146,31 @@ const WORKBENCH_SCRIPT = `
       scheduled = true;
       window.requestAnimationFrame(() => {
         scheduled = false;
-        applySync();
+        applySync(pendingSource);
+        pendingSource = null;
       });
     };
   })();
 
-  const sourcePane = paneById.get(syncSource);
-  const sourceContent = sourcePane?.querySelector('[data-pane-content]');
-  if (sourceContent instanceof HTMLElement && syncEnabled) {
-    sourceContent.addEventListener('scroll', frameSync, { passive: true });
+  refreshHeadingState();
+  window.addEventListener('resize', refreshHeadingState);
+
+  for (const pane of paneElements) {
+    const paneId = pane.getAttribute('data-pane-id');
+    const content = pane.querySelector('[data-pane-content]');
+    if (!(content instanceof HTMLElement) || !paneId) {
+      continue;
+    }
+
+    content.addEventListener(
+      'scroll',
+      () => {
+        if (!isApplyingSync && syncEnabled) {
+          frameSync(paneId);
+        }
+      },
+      { passive: true },
+    );
   }
 })();
 </script>
