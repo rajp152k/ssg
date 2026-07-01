@@ -19,6 +19,83 @@ const WORKBENCH_SCRIPT = `
   const syncSource = workbench.dataset.syncSource || 'human';
   const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
   const paneById = new Map();
+  const headingStateById = new Map();
+
+  function normalizeHeadingText(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/\\s+/g, ' ')
+      .replace(/[^\\w\\s-]/g, '')
+      .trim();
+  }
+
+  function buildHeadingState(content) {
+    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const occurrenceByKey = new Map();
+
+    const records = headings
+      .map((heading) => {
+        const level = heading.tagName.toLowerCase();
+        const text = normalizeHeadingText(heading.textContent);
+        if (!text) {
+          return null;
+        }
+
+        const index = (occurrenceByKey.get(level + '|' + text) || 0) + 1;
+        occurrenceByKey.set(level + '|' + text, index);
+        const key = level + '|' + text + '#' + index;
+        return {
+          key,
+          text,
+          top: heading.offsetTop,
+        };
+      })
+      .filter(Boolean);
+
+    const byKey = new Map();
+    const byText = new Map();
+
+    for (const record of records) {
+      byKey.set(record.key, record.top);
+      if (!byText.has(record.text)) {
+        byText.set(record.text, record.top);
+      }
+    }
+
+    return {
+      records,
+      byKey,
+      byText,
+    };
+  }
+
+  function refreshHeadingState() {
+    headingStateById.clear();
+    for (const pane of paneElements) {
+      const paneId = pane.getAttribute('data-pane-id');
+      if (!paneId) {
+        continue;
+      }
+
+      const content = pane.querySelector('[data-pane-content]');
+      if (!(content instanceof HTMLElement)) {
+        continue;
+      }
+
+      headingStateById.set(paneId, buildHeadingState(content));
+    }
+  }
+
+  function findActiveHeading(records, scrollTop) {
+    for (let index = records.length - 1; index >= 0; index--) {
+      const record = records[index];
+      if (scrollTop + 16 >= record.top) {
+        return record;
+      }
+    }
+
+    return null;
+  }
 
   for (const pane of paneElements) {
     const paneId = pane.getAttribute('data-pane-id');
@@ -27,6 +104,9 @@ const WORKBENCH_SCRIPT = `
     }
   }
 
+  refreshHeadingState();
+  window.addEventListener('resize', refreshHeadingState);
+
   const applySync = () => {
     if (!syncEnabled) {
       return;
@@ -34,7 +114,8 @@ const WORKBENCH_SCRIPT = `
 
     const sourcePane = paneById.get(syncSource);
     const sourceContent = sourcePane?.querySelector('[data-pane-content]');
-    if (!(sourceContent instanceof HTMLElement)) {
+    const sourceState = headingStateById.get(syncSource);
+    if (!(sourceContent instanceof HTMLElement) || !sourceState) {
       return;
     }
 
@@ -43,7 +124,12 @@ const WORKBENCH_SCRIPT = `
       return;
     }
 
+    const sourceActiveHeading = sourceState.records.length
+      ? findActiveHeading(sourceState.records, sourceContent.scrollTop)
+      : null;
+
     const ratio = sourceContent.scrollTop / sourceMax;
+
     for (const pane of paneElements) {
       if (pane === sourcePane) {
         continue;
@@ -52,6 +138,18 @@ const WORKBENCH_SCRIPT = `
       const content = pane.querySelector('[data-pane-content]');
       if (!(content instanceof HTMLElement)) {
         continue;
+      }
+
+      const targetState = headingStateById.get(pane.getAttribute('data-pane-id'));
+      if (sourceActiveHeading && targetState) {
+        const maxScroll = content.scrollHeight - content.clientHeight;
+        const targetTop = targetState.byKey.get(sourceActiveHeading.key)
+          ?? targetState.byText.get(sourceActiveHeading.text);
+
+        if (typeof targetTop === 'number' && maxScroll > 0) {
+          content.scrollTop = Math.max(0, Math.min(maxScroll, targetTop));
+          continue;
+        }
       }
 
       const maxScroll = content.scrollHeight - content.clientHeight;
