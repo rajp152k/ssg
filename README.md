@@ -106,7 +106,8 @@ The config file is now a first-class way to drive templates and defaults.
     "baseUrl": "https://yetanotherraj.com",
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
-    "footer": "© 2026 Raj"
+    "footer": "© 2026 Raj",
+    "theme": "themes/ghostty.css"
   },
   "paths": {
     "postsDir": "content/posts",
@@ -131,6 +132,21 @@ These keys are available as template variables:
 - `{{site_index_description}}`
 - `{{site_footer}}`
 - `{{site_copyright_year}}` (derived at build time)
+- `{{css_import}}` (optional `<link>` tag for configured `site.theme`)
+
+## Theming
+
+You can now wire in a theme stylesheet directly from the config:
+
+```json
+"site": {
+  "theme": "themes/ghostty.css"
+}
+```
+
+The linked file is loaded from your `templates` directory into the generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
+
+A basic bundled theme is included as `templates/themes/ghostty.css`.
 
 ## Commands
 

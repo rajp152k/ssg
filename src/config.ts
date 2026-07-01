@@ -19,6 +19,7 @@ export interface SiteConfig {
   indexTitle: string;
   indexDescription: string;
   footer: string;
+  theme?: string;
 }
 
 export interface DevConfig {

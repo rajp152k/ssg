@@ -373,6 +373,41 @@ function sortPostsByDateDesc(posts: Post[]): Post[] {
   return [...posts].sort((a, b) => b.metadata.date.getTime() - a.metadata.date.getTime());
 }
 
+function buildThemeImport(config: SsgConfig): string {
+  const theme = (config.site.theme ?? '').trim();
+
+  if (!theme) {
+    return '';
+  }
+
+  if (/^[a-z]+:\/\//i.test(theme)) {
+    return `<link rel="stylesheet" href="${theme}" />`;
+  }
+
+  const safeThemePath = path
+    .normalize(theme)
+    .replace(/^[./\\]+/, '')
+    .replace(/^\/+/, '');
+  const templatesRoot = path.resolve(config.templatesDir);
+  const sourceThemePath = path.resolve(config.templatesDir, safeThemePath);
+  const relativeThemePath = path.relative(templatesRoot, sourceThemePath);
+
+  if (relativeThemePath.startsWith(`..${path.sep}`) || relativeThemePath === '..') {
+    throw new Error(`Theme stylesheet path is outside templates directory: ${theme}`);
+  }
+
+  if (!fs.existsSync(sourceThemePath)) {
+    throw new Error(`Theme stylesheet does not exist: ${theme}`);
+  }
+
+  const outputThemePath = path.resolve(config.outputDir, relativeThemePath);
+  fs.mkdirSync(path.dirname(outputThemePath), { recursive: true });
+  fs.copyFileSync(sourceThemePath, outputThemePath);
+
+  const href = `/${relativeThemePath.replace(/\\/g, '/')}`;
+  return `<link rel="stylesheet" href="${href}" />`;
+}
+
 function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): TemplateContext {
   const year = new Date().getFullYear().toString();
 
@@ -394,7 +429,12 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
   };
 }
 
-function renderPostsIndexTemplate(posts: Post[], template: string, config: SsgConfig): string {
+function renderPostsIndexTemplate(
+  posts: Post[],
+  template: string,
+  config: SsgConfig,
+  themeImport: string,
+): string {
   const items = posts
     .map((post) => {
       return `<li><a href="./${post.metadata.slug}/">${post.metadata.title}</a> <time datetime="${post.metadata.isoDate}">${formatDate(post.metadata.date)}</time></li>`;
@@ -408,6 +448,7 @@ function renderPostsIndexTemplate(posts: Post[], template: string, config: SsgCo
       page_title: config.site.indexTitle,
       content: `<ul>${items}</ul>`,
       description: config.site.indexDescription,
+      css_import: themeImport,
     }),
   );
 }
@@ -506,6 +547,7 @@ export function buildSite(config: SsgConfig): void {
 
   fs.rmSync(outputDir, { recursive: true, force: true });
   fs.mkdirSync(outputDir, { recursive: true });
+  const themeImport = buildThemeImport(config);
 
   const postSources = collectPostSources(postsDir);
   const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
@@ -521,12 +563,13 @@ export function buildSite(config: SsgConfig): void {
       workbench_script: WORKBENCH_SCRIPT,
       sync_enabled: post.sync.enabled ? 'true' : 'false',
       sync_source: String(post.sync.source),
+      css_import: themeImport,
     });
 
     const pageHtml = renderTemplate(postTemplate, pageContext);
     writePage(outputDir, post.metadata.slug, pageHtml);
   }
 
-  const indexHtml = renderPostsIndexTemplate(posts, indexTemplate, config);
+  const indexHtml = renderPostsIndexTemplate(posts, indexTemplate, config, themeImport);
   fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml, 'utf8');
 }

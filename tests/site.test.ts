@@ -70,6 +70,70 @@ describe('site build', () => {
     }
   });
 
+  it('copies configured theme css to output and injects it into templates', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-theme-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<!doctype html><html><head>{{css_import}}</head><body>{{title}}</body></html>',
+      'utf8',
+    );
+
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{css_import}}{{content}}', 'utf8');
+
+    fs.mkdirSync(path.join(templatesDir, 'themes'), { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'themes', 'ghostty.css'), 'body { background: #123; }', 'utf8');
+
+    fs.writeFileSync(
+      path.join(postsDir, 'sample.md'),
+      '---\ntitle: Themed Post\ndate: 2026-07-02\n---\n\nThemed output.',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: 'Footer',
+        theme: 'themes/ghostty.css',
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      buildSite(config);
+
+      const post = fs.readFileSync(path.join(outputDir, 'themed-post', 'index.html'), 'utf8');
+      expect(post).toContain('<link rel="stylesheet" href="/themes/ghostty.css" />');
+
+      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
+      expect(index).toContain('<link rel="stylesheet" href="/themes/ghostty.css" />');
+
+      const themeAsset = fs.readFileSync(path.join(outputDir, 'themes', 'ghostty.css'), 'utf8');
+      expect(themeAsset).toContain('background');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('renders post meta date and content correctly', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-'));
     const postsDir = path.join(tmp, 'content', 'posts');
