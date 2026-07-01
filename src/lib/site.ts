@@ -26,6 +26,7 @@ const WORKBENCH_SCRIPT = `
   const paneContentById = new Map();
   const headingRecordsById = new Map();
   const syncAnimationsById = new Map();
+  const lastHeadingIndexBySourceId = new Map();
 
   const HEADING_OFFSET = 16;
   const SYNC_SCROLL_DURATION = 160;
@@ -46,6 +47,7 @@ const WORKBENCH_SCRIPT = `
 
   function refreshHeadingState() {
     headingRecordsById.clear();
+    lastHeadingIndexBySourceId.clear();
 
     for (const pane of paneElements) {
       const paneId = pane.getAttribute('data-pane-id');
@@ -71,25 +73,6 @@ const WORKBENCH_SCRIPT = `
     }
 
     return -1;
-  }
-
-  function buildTargetTop(sourceHeadings, targetHeadings, sourceTop, activeHeadingIndex) {
-    const currentSourceHeading = sourceHeadings[activeHeadingIndex];
-    const nextSourceHeading = sourceHeadings[activeHeadingIndex + 1];
-    const currentTargetHeading = targetHeadings[activeHeadingIndex];
-    const nextTargetHeading = targetHeadings[activeHeadingIndex + 1];
-
-    if (!nextSourceHeading || !nextTargetHeading) {
-      return currentTargetHeading.top;
-    }
-
-    const sourceSpan = nextSourceHeading.top - currentSourceHeading.top;
-    if (sourceSpan <= 0) {
-      return currentTargetHeading.top;
-    }
-
-    const sourceProgress = clamp((sourceTop - currentSourceHeading.top) / sourceSpan, 0, 1);
-    return currentTargetHeading.top + sourceProgress * (nextTargetHeading.top - currentTargetHeading.top);
   }
 
   function easeInOutQuad(progress) {
@@ -173,6 +156,12 @@ const WORKBENCH_SCRIPT = `
       return;
     }
 
+    const lastIndex = lastHeadingIndexBySourceId.get(sourceId);
+    if (lastIndex === activeHeadingIndex) {
+      return;
+    }
+    lastHeadingIndexBySourceId.set(sourceId, activeHeadingIndex);
+
     for (const pane of paneElements) {
       if (pane === sourcePane) {
         continue;
@@ -198,12 +187,7 @@ const WORKBENCH_SCRIPT = `
         continue;
       }
 
-      const targetTop = buildTargetTop(
-        sourceHeadings,
-        targetHeadings,
-        sourceScrollTop + HEADING_OFFSET,
-        activeHeadingIndex,
-      );
+      const targetTop = targetHeadings[activeHeadingIndex].top;
       scrollPaneToIndex(paneId, content, targetTop);
     }
   };
@@ -248,10 +232,12 @@ const WORKBENCH_SCRIPT = `
           return;
         }
 
-        if (syncAnimationsById.has(paneId)) {
-          return;
+        const state = syncAnimationsById.get(paneId);
+        if (state?.raf) {
+          cancelAnimationFrame(state.raf);
         }
 
+        syncAnimationsById.delete(paneId);
         frameSync(paneId);
       },
       { passive: true },
