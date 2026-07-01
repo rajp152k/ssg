@@ -257,7 +257,8 @@ function buildWorkbenchMarkup(post: Post): string {
         ${gridStyle}
         display: grid;
         gap: 1rem;
-        min-height: 70vh;
+        height: 100%;
+        min-height: 0;
       }
     </style>
     <div
