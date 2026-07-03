@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Post, PostLayout } from '../types';
 import { renderTemplate, formatDate } from './template';
 import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
-import type { SsgConfig } from '../config';
+import type { SsgConfig, ThemeMode } from '../config';
 
 type TemplateContext = Record<string, string>;
 
@@ -446,9 +446,188 @@ function buildTemplateAssetImport(href: string): string {
   return `<link rel="stylesheet" href="${href}" />`;
 }
 
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; defaultMode: ThemeMode }): string {
+  const initialHref = theme.defaultMode === 'light' ? theme.lightHref : theme.darkHref;
+  const themeJson = JSON.stringify(theme);
+
+  return `
+    <link id="ssg-theme-link" rel="stylesheet" href="${initialHref}" data-ssg-theme />
+    <style id="ssg-theme-switcher-style">
+      #ssg-theme-switcher {
+        position: fixed;
+        top: 0.75rem;
+        right: 0.75rem;
+        z-index: 50;
+        padding: 0.25rem 0.45rem;
+        border: 1px solid #2a2f3a;
+        border-radius: 0;
+        background: rgba(10, 10, 10, 0.75);
+        color: #f5f5f5;
+        font: 11px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      #ssg-theme-switcher select {
+        margin-left: 0.35rem;
+        padding: 0.1rem 0.3rem;
+        border: 1px solid #2a2f3a;
+        border-radius: 0;
+        background: #0f131b;
+        color: #d5dde8;
+      }
+
+      :root[data-ssg-theme="light"] #ssg-theme-switcher {
+        background: rgba(247, 242, 231, 0.92);
+        border-color: #6d7584;
+        color: #2b2f36;
+      }
+
+      :root[data-ssg-theme="light"] #ssg-theme-switcher select {
+        border-color: #6d7584;
+        background: #fcfaf2;
+        color: #2b2f36;
+      }
+    </style>
+    <script>
+      (function () {
+        const themeConfig = ${themeJson};
+        const STORAGE_KEY = 'ssg-theme-preference';
+        const systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+        const isThemeMode = (value) => value === 'dark' || value === 'light' || value === 'system';
+        const readMode = () => {
+          try {
+            const value = window.localStorage.getItem(STORAGE_KEY);
+            return isThemeMode(value) ? value : themeConfig.defaultMode;
+          } catch (_error) {
+            return themeConfig.defaultMode;
+          }
+        };
+
+        const modeToActual = (mode) => {
+          if (mode !== 'system') {
+            return mode;
+          }
+
+          return systemQuery.matches ? 'dark' : 'light';
+        };
+
+        const applyTheme = (mode) => {
+          const actual = modeToActual(mode);
+          const link = document.getElementById('ssg-theme-link');
+          if (link) {
+            link.setAttribute('href', actual === 'dark' ? themeConfig.darkHref : themeConfig.lightHref);
+            link.setAttribute('data-ssg-theme', actual);
+          }
+          document.documentElement.setAttribute('data-ssg-theme', actual);
+          const select = document.getElementById('ssg-theme-switcher-select');
+          if (select) {
+            select.value = mode;
+          }
+        };
+
+        const setMode = (mode) => {
+          const nextMode = isThemeMode(mode) ? mode : 'system';
+          try {
+            window.localStorage.setItem(STORAGE_KEY, nextMode);
+          } catch (_error) {
+            // ignore
+          }
+          applyTheme(nextMode);
+        };
+
+        const applySystemMode = () => {
+          if (readMode() === 'system') {
+            applyTheme('system');
+          }
+        };
+
+        const mountSwitcher = () => {
+          if (document.getElementById('ssg-theme-switcher')) {
+            return;
+          }
+
+          const wrapper = document.createElement('div');
+          wrapper.id = 'ssg-theme-switcher';
+          const label = document.createElement('label');
+          label.setAttribute('for', 'ssg-theme-switcher-select');
+          label.textContent = 'Theme';
+
+          const select = document.createElement('select');
+          select.id = 'ssg-theme-switcher-select';
+          select.innerHTML =
+            '<option value="system">System</option>' +
+            '<option value="light">Light</option>' +
+            '<option value="dark">Dark</option>';
+
+          select.addEventListener('change', (event) => {
+            setMode(event.target.value);
+          });
+
+          wrapper.append(label);
+          wrapper.append(select);
+          document.body.append(wrapper);
+          const mode = readMode();
+          select.value = isThemeMode(mode) ? mode : 'system';
+        };
+
+        if (systemQuery.addEventListener) {
+          systemQuery.addEventListener('change', applySystemMode);
+        } else if (typeof (systemQuery as any).addListener === 'function') {
+          (systemQuery as any).addListener(applySystemMode);
+        }
+
+        const initialMode = readMode();
+        applyTheme(initialMode);
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', mountSwitcher, { once: true });
+        } else {
+          mountSwitcher();
+        }
+      })();
+    </script>
+  `;
+}
+
+function resolveThemeConfig(config: SsgConfig): string {
+  const configuredTheme = config.site.theme;
+
+  if (typeof configuredTheme === 'string') {
+    const singleHref = resolveTemplateAssetHref(config, configuredTheme, 'theme');
+    return singleHref ? buildTemplateAssetImport(singleHref) : '';
+  }
+
+  if (!configuredTheme || typeof configuredTheme !== 'object') {
+    return '';
+  }
+
+  const darkSource = configuredTheme.dark?.trim() ?? '';
+  const lightSource = configuredTheme.light?.trim() ?? '';
+  const resolvedDark = darkSource ? resolveTemplateAssetHref(config, darkSource, 'theme') : '';
+  const resolvedLight = lightSource ? resolveTemplateAssetHref(config, lightSource, 'theme') : '';
+
+  if (!resolvedDark || !resolvedLight) {
+    const single = resolvedDark || resolvedLight;
+    return single ? buildTemplateAssetImport(single) : '';
+  }
+
+  const normalizedDefault: ThemeMode = isThemeMode(configuredTheme.default)
+    ? configuredTheme.default
+    : 'system';
+
+  return buildThemeSwitcherImport({
+    darkHref: resolvedDark,
+    lightHref: resolvedLight,
+    defaultMode: normalizedDefault,
+  });
+}
+
 function buildThemeImport(config: SsgConfig): string {
-  const href = resolveTemplateAssetHref(config, config.site.theme ?? '', 'theme');
-  return href ? buildTemplateAssetImport(href) : '';
+  return resolveThemeConfig(config);
 }
 
 function buildFontImport(config: SsgConfig): string {

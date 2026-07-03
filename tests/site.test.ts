@@ -134,6 +134,77 @@ describe('site build', () => {
     }
   });
 
+  it('injects theme switcher markup when dark and light themes are configured', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-theme-switcher-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(templatesDir, 'post.html'),
+      '<!doctype html><html><head>{{css_import}}</head><body>{{title}}</body></html>',
+      'utf8',
+    );
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{css_import}}{{content}}', 'utf8');
+
+    fs.mkdirSync(path.join(templatesDir, 'themes'), { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'themes', 'dark.css'), 'body { background: #000; }', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'themes', 'light.css'), 'body { background: #fff; }', 'utf8');
+
+    fs.writeFileSync(
+      path.join(postsDir, 'sample.md'),
+      '---\ntitle: Themed Post\ndate: 2026-07-02\n---\n\nThemed output with switcher.',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: 'Footer',
+        theme: {
+          dark: 'themes/dark.css',
+          light: 'themes/light.css',
+          default: 'system',
+        },
+      },
+      dev: {
+        host: '127.0.0.1',
+        port: 3000,
+      },
+    };
+
+    try {
+      buildSite(config);
+
+      const post = fs.readFileSync(path.join(outputDir, 'themed-post', 'index.html'), 'utf8');
+      expect(post).toContain('id="ssg-theme-link"');
+      expect(post).toContain('/themes/dark.css');
+      expect(post).toContain('/themes/light.css');
+      expect(post).toContain('ssg-theme-switcher');
+      expect(post).toContain('ssg-theme-switcher-style');
+      expect(post).toContain('"defaultMode":"system"');
+
+      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
+      expect(index).toContain('id="ssg-theme-link"');
+      expect(index).toContain('system');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('copies configured font css to output and injects it into templates', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-font-'));
     const postsDir = path.join(tmp, 'content', 'posts');

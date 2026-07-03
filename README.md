@@ -107,7 +107,11 @@ The config file is now a first-class way to drive templates and defaults.
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
     "footer": "(C) {{site_copyright_year}} 'The Raj'",
-    "theme": "themes/tbm.css",
+    "theme": {
+      "dark": "themes/dark.css",
+      "light": "themes/light.css",
+      "default": "system"
+    },
     "font": "fonts/terminess.css",
     "assistant": "his AI"
   },
@@ -136,20 +140,37 @@ These keys are available as template variables:
 - `{{site_copyright_year}}` (derived at build time)
 - `{{author}}`
 - `{{assistant}}`
-- `{{css_import}}` (optional `<link>` tag for configured `site.theme`)
+- `{{css_import}}` (theme controls + theme stylesheet tags for `site.theme`)
 - `{{font_import}}` (optional stylesheet or inline font declaration for configured `site.font`)
 
 ## Theming
 
-You can now wire in a theme stylesheet directly from the config:
+You can now wire in a light/dark theme pair directly from the config:
 
 ```json
 "site": {
-  "theme": "themes/tbm.css"
+  "theme": {
+    "dark": "themes/dark.css",
+    "light": "themes/light.css",
+    "default": "system"
+  }
 }
 ```
 
-The linked file is loaded from your `templates` directory into the generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
+The generated pages include a compact theme switcher with:
+- `System` (follows your OS preference)
+- `Light`
+- `Dark`
+
+You can also continue using a single theme path for legacy behavior:
+
+```json
+"site": {
+  "theme": "themes/dark.css"
+}
+```
+
+Theme assets are loaded from your `templates` directory into generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
 
 To layer in a font, set `site.font`:
 
@@ -161,7 +182,7 @@ To layer in a font, set `site.font`:
 
 If `site.font` points to a CSS file, it is copied from `templates` and linked in `<head>`. If it points to a font asset (`woff`, `woff2`, `ttf`, `otf`, `eot`, `svg`), the build injects a `@font-face` declaration automatically and applies it site-wide.
 
-A basic bundled theme is included as `templates/themes/tbm.css`, and a starter font file is available at `templates/fonts/terminess.css`.
+A basic bundled theme pair is included as `templates/themes/dark.css` and `templates/themes/light.css`, and a starter font file is available at `templates/fonts/terminess.css`.
 
 ## Commands
 
