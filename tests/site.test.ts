@@ -194,6 +194,7 @@ describe('site build', () => {
       expect(post).toContain('/themes/dark.css');
       expect(post).toContain('/themes/light.css');
       expect(post).toContain('ssg-theme-switcher');
+      expect(post).toContain('ssg-theme-switcher-button');
       expect(post).toContain('ssg-theme-switcher-style');
       expect(post).toContain('"defaultMode":"system"');
 

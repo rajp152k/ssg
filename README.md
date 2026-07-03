@@ -157,7 +157,7 @@ You can now wire in a light/dark theme pair directly from the config:
 }
 ```
 
-The generated pages include a compact theme switcher with:
+The generated pages include a compact button in the top-right that cycles through:
 - `System` (follows your OS preference)
 - `Light`
 - `Dark`

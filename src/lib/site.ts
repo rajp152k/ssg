@@ -462,32 +462,25 @@ function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; 
         top: 0.75rem;
         right: 0.75rem;
         z-index: 50;
-        padding: 0.25rem 0.45rem;
+      }
+
+      #ssg-theme-switcher-button {
         border: 1px solid #2a2f3a;
         border-radius: 0;
         background: rgba(10, 10, 10, 0.75);
         color: #f5f5f5;
+        padding: 0.32rem 0.5rem;
         font: 11px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        cursor: pointer;
       }
 
-      #ssg-theme-switcher select {
-        margin-left: 0.35rem;
-        padding: 0.1rem 0.3rem;
-        border: 1px solid #2a2f3a;
-        border-radius: 0;
-        background: #0f131b;
-        color: #d5dde8;
+      #ssg-theme-switcher-button:hover {
+        opacity: 0.9;
       }
 
-      :root[data-ssg-theme="light"] #ssg-theme-switcher {
+      :root[data-ssg-theme="light"] #ssg-theme-switcher-button {
+        border-color: #6d7584;
         background: rgba(247, 242, 231, 0.92);
-        border-color: #6d7584;
-        color: #2b2f36;
-      }
-
-      :root[data-ssg-theme="light"] #ssg-theme-switcher select {
-        border-color: #6d7584;
-        background: #fcfaf2;
         color: #2b2f36;
       }
     </style>
@@ -496,6 +489,13 @@ function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; 
         const themeConfig = ${themeJson};
         const STORAGE_KEY = 'ssg-theme-preference';
         const systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const MODES = ['system', 'light', 'dark'];
+
+        const modeLabels = {
+          system: 'System',
+          light: 'Light',
+          dark: 'Dark',
+        };
 
         const isThemeMode = (value) => value === 'dark' || value === 'light' || value === 'system';
         const readMode = () => {
@@ -515,6 +515,14 @@ function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; 
           return systemQuery.matches ? 'dark' : 'light';
         };
 
+        const writeMode = (mode) => {
+          try {
+            window.localStorage.setItem(STORAGE_KEY, mode);
+          } catch (_error) {
+            // ignore
+          }
+        };
+
         const applyTheme = (mode) => {
           const actual = modeToActual(mode);
           const link = document.getElementById('ssg-theme-link');
@@ -522,21 +530,26 @@ function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; 
             link.setAttribute('href', actual === 'dark' ? themeConfig.darkHref : themeConfig.lightHref);
             link.setAttribute('data-ssg-theme', actual);
           }
+
           document.documentElement.setAttribute('data-ssg-theme', actual);
-          const select = document.getElementById('ssg-theme-switcher-select');
-          if (select) {
-            select.value = mode;
+          const button = document.getElementById('ssg-theme-switcher-button');
+          if (button) {
+            const label = 'Theme: ' + (modeLabels[mode] || 'System');
+            button.textContent = label;
           }
         };
 
         const setMode = (mode) => {
           const nextMode = isThemeMode(mode) ? mode : 'system';
-          try {
-            window.localStorage.setItem(STORAGE_KEY, nextMode);
-          } catch (_error) {
-            // ignore
-          }
+          writeMode(nextMode);
           applyTheme(nextMode);
+        };
+
+        const cycleMode = () => {
+          const current = readMode();
+          const index = MODES.indexOf(current);
+          const nextMode = MODES[(index + 1) % MODES.length];
+          setMode(nextMode);
         };
 
         const applySystemMode = () => {
@@ -552,26 +565,16 @@ function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; 
 
           const wrapper = document.createElement('div');
           wrapper.id = 'ssg-theme-switcher';
-          const label = document.createElement('label');
-          label.setAttribute('for', 'ssg-theme-switcher-select');
-          label.textContent = 'Theme';
 
-          const select = document.createElement('select');
-          select.id = 'ssg-theme-switcher-select';
-          select.innerHTML =
-            '<option value="system">System</option>' +
-            '<option value="light">Light</option>' +
-            '<option value="dark">Dark</option>';
+          const button = document.createElement('button');
+          button.id = 'ssg-theme-switcher-button';
+          button.type = 'button';
+          button.addEventListener('click', cycleMode);
 
-          select.addEventListener('change', (event) => {
-            setMode(event.target.value);
-          });
-
-          wrapper.append(label);
-          wrapper.append(select);
+          wrapper.append(button);
           document.body.append(wrapper);
           const mode = readMode();
-          select.value = isThemeMode(mode) ? mode : 'system';
+          applyTheme(mode);
         };
 
         if (systemQuery.addEventListener) {
