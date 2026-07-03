@@ -11,18 +11,22 @@ const LIVE_RELOAD_PATH = '/__ssg__/events';
 export interface DevCommandOptions extends DevOptions {}
 
 export function devCommand(options: DevCommandOptions = {}): void {
-  const config = resolveConfig(options);
+  const resolveLatestConfig = () => resolveConfig(options);
+  let config = resolveLatestConfig();
   const host = config.dev.host;
   const port = config.dev.port;
 
   const clients = new Set<http.ServerResponse>();
   const watchers: fs.FSWatcher[] = [];
 
-  const projectRoot = process.cwd();
   const outputDir = config.outputDir;
+  const resolvedConfigPath = options.configPath
+    ? path.resolve(process.cwd(), options.configPath)
+    : path.resolve(process.cwd(), 'ssg.config.json');
   const watchPaths = [
     config.postsDir,
     config.templatesDir,
+    resolvedConfigPath,
   ];
 
   let rebuildTimer: NodeJS.Timeout | null = null;
@@ -41,6 +45,7 @@ export function devCommand(options: DevCommandOptions = {}): void {
 
     rebuildTimer = setTimeout(() => {
       try {
+        config = resolveLatestConfig();
         buildSite(config);
         console.log(`[${new Date().toLocaleTimeString()}] Rebuilt`);
         notifyReload();
