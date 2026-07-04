@@ -1,15 +1,23 @@
 import { buildCommand } from './commands/build';
 import { devCommand } from './commands/dev';
+import { newCommand } from './commands/new';
 
 function printUsage(): void {
   console.log(`Usage:
-  npm run build [-- --config=ssg.config.json --postsDir=... --outDir=... --templatesDir=...]
-  npm run dev [-- --config=ssg.config.json --postsDir=... --outDir=... --templatesDir=... --host=127.0.0.1 --port=3000]
+  ssg build [--config=ssg.config.json --postsDir=... --outDir=... --templatesDir=...]
+  ssg dev [--config=ssg.config.json --postsDir=... --outDir=... --templatesDir=... --host=127.0.0.1 --port=3000]
+  ssg new "Post title" [--force]
 
 Commands:
-  build       Build the site from markdown posts.
+  build       Build the site.
   dev         Build and run local server with watch + live reload.
+  new         Create a canvas-style directory post.
+  help        Show this help.
 `);
+}
+
+function hasFlag(key: string, args: string[]): boolean {
+  return args.includes(`--${key}`);
 }
 
 function parseArg(key: string, args: string[]): string | undefined {
@@ -28,12 +36,30 @@ function main(): void {
   const templatesDir = parseArg('templatesDir', args);
   const configPath = parseArg('config', args);
 
+  if (!command || command === 'help' || command === '--help' || command === '-h') {
+    printUsage();
+    return;
+  }
+
   if (command === 'build') {
     buildCommand({
       postsDir,
       outputDir: outDir,
       templatesDir,
       configPath,
+    });
+    return;
+  }
+
+  if (command === 'new') {
+    const title = args.filter((arg) => !arg.startsWith('--')).slice(1).join(' ');
+    newCommand({
+      title,
+      postsDir,
+      outputDir: outDir,
+      templatesDir,
+      configPath,
+      force: hasFlag('force', args),
     });
     return;
   }
@@ -54,7 +80,7 @@ function main(): void {
   }
 
   printUsage();
-  process.exitCode = command ? 1 : 0;
+  process.exitCode = 1;
 }
 
 main();
