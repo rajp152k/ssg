@@ -259,8 +259,10 @@
       }
 
       pre.mermaid {
-        background: #f8fafc;
-        border: 1px dashed #94a3b8;
+        background: #fff;
+        border: 1px solid #000;
+        color: #000;
+        font-family: 'Terminess', 'Terminess Nerd Font', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
         padding: 0.5rem;
         border-radius: 0;
       }
@@ -288,6 +290,64 @@
         font-style: normal;
         line-height: 1.25;
         white-space: nowrap;
+      }
+
+      @media (max-width: 760px) {
+        body {
+          overflow: auto;
+        }
+
+        main {
+          height: auto;
+          min-height: 100%;
+        }
+
+        .post-heading {
+          align-items: flex-start;
+        }
+
+        .post-meta {
+          grid-template-columns: 1fr;
+          gap: 0.1rem;
+        }
+
+        .post-meta span,
+        .post-meta span:nth-child(1),
+        .post-meta span:nth-child(2),
+        .post-meta span:nth-child(3) {
+          text-align: left;
+        }
+
+        article {
+          overflow: visible;
+        }
+
+        #ssg-workbench {
+          display: grid;
+          grid-template-columns: 1fr !important;
+          grid-template-rows: auto auto !important;
+          grid-template-areas:
+            "canvas"
+            "annotations" !important;
+          height: auto;
+        }
+
+        [data-pane-id="index"] {
+          display: none;
+        }
+
+        [data-pane-id="canvas"],
+        [data-pane-id="annotations"] {
+          min-height: 55vh;
+        }
+
+        .ssg-pane__body {
+          overflow: visible;
+        }
+
+        footer {
+          white-space: normal;
+        }
       }
     </style>
     {{css_import}}

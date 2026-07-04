@@ -378,6 +378,27 @@ if (window.mermaid && document.querySelector('.mermaid')) {
   window.mermaid.initialize({
     startOnLoad: true,
     securityLevel: 'loose',
+    theme: 'base',
+    themeVariables: {
+      background: '#ffffff',
+      primaryColor: '#ffffff',
+      primaryTextColor: '#000000',
+      primaryBorderColor: '#000000',
+      lineColor: '#000000',
+      secondaryColor: '#ffffff',
+      secondaryTextColor: '#000000',
+      secondaryBorderColor: '#000000',
+      tertiaryColor: '#ffffff',
+      tertiaryTextColor: '#000000',
+      tertiaryBorderColor: '#000000',
+      noteBkgColor: '#ffffff',
+      noteTextColor: '#000000',
+      noteBorderColor: '#000000',
+      edgeLabelBackground: '#ffffff',
+      clusterBkg: '#ffffff',
+      clusterBorder: '#000000',
+      fontFamily: 'Terminess, Terminess Nerd Font, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
+    },
   });
 }
 </script>
