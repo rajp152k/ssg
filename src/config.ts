@@ -10,13 +10,6 @@ export interface CliConfigOptions {
   port?: string;
 }
 
-export type ThemeMode = 'system' | 'dark' | 'light';
-
-export interface ThemeConfig {
-  dark?: string;
-  light?: string;
-  default?: ThemeMode;
-}
 
 export interface SiteConfig {
   title: string;
@@ -27,7 +20,7 @@ export interface SiteConfig {
   indexTitle: string;
   indexDescription: string;
   footer: string;
-  theme?: string | ThemeConfig;
+  theme?: string;
   font?: string;
   assistant?: string;
 }
@@ -79,11 +72,7 @@ export const defaultConfig: SsgConfig = {
     indexTitle: 'Posts',
     indexDescription: 'Latest posts',
     footer: "(C) {{site_copyright_year}} 'The Raj'",
-    theme: {
-      dark: 'themes/dark.css',
-      light: 'themes/light.css',
-      default: 'system',
-    },
+    theme: 'themes/light.css',
     assistant: 'his AI',
   },
   dev: {
