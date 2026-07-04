@@ -12,33 +12,131 @@
         box-sizing: border-box;
       }
 
+      html,
       body {
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        height: 100%;
+      }
+
+      body {
+        font-family: 'Terminess', 'Terminess Nerd Font', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
         max-width: none;
+        min-height: 100%;
         margin: 0;
         padding: 0.85rem 0.75rem;
         line-height: 1.45;
-        font-size: 0.95rem;
+        font-size: 1.14rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       h1 {
-        margin: 0 0 0.35rem;
-        font-size: 1.65rem;
-        line-height: 1.15;
+        margin: 0;
+        font-size: 1.62rem;
+        line-height: 1.18;
       }
 
       p {
         margin: 0.35rem 0;
       }
 
-      ul {
-        list-style: none;
-        padding: 0;
-        margin: 0.7rem 0 0;
+      .home-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.9fr);
+        gap: 0.75rem;
+        margin-top: 0.7rem;
+        flex: 1;
+        min-height: 0;
       }
 
-      li {
-        margin-bottom: 0.45rem;
+      .home-partition {
+        border: 1px solid #000;
+        min-height: 0;
+        padding: 0.45rem;
+        overflow: auto;
+      }
+
+      .posts-partition {
+        padding: 0;
+        background:
+          linear-gradient(to right, transparent calc(58% - 0.5px), #000 calc(58% - 0.5px), #000 calc(58% + 0.5px), transparent calc(58% + 0.5px)),
+          linear-gradient(to right, transparent calc(78% - 0.5px), #000 calc(78% - 0.5px), #000 calc(78% + 0.5px), transparent calc(78% + 0.5px));
+      }
+
+      .home-partition h2 {
+        border-bottom: 2px solid #000;
+        font-size: 0.94rem;
+        letter-spacing: 0.04em;
+        margin: 0 0 0.45rem;
+        padding-bottom: 0.25rem;
+        text-transform: uppercase;
+      }
+
+      .embedding-placeholder {
+        color: #444;
+        font-size: 1.08rem;
+        margin: 0;
+      }
+
+      .posts-table {
+        width: 100%;
+        border: 1px solid #000;
+        border-collapse: collapse;
+        margin: 0;
+        font-size: 1.10rem;
+        table-layout: fixed;
+      }
+
+      .posts-table th,
+      .posts-table td {
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        padding: 0.28rem 0.35rem;
+        text-align: left;
+        vertical-align: baseline;
+      }
+
+      .posts-table th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        border-bottom: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.94rem;
+      }
+
+      .posts-table th:nth-child(1),
+      .posts-table td:nth-child(1) {
+        width: 58%;
+      }
+
+      .posts-table th:nth-child(2),
+      .posts-table td:nth-child(2) {
+        width: 20%;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .posts-table th:nth-child(3),
+      .posts-table td:nth-child(3) {
+        width: 22%;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 760px) {
+        .home-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .posts-table code {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        font-family: inherit;
+        font-size: 1.06rem;
       }
 
       .site-description {
@@ -50,7 +148,7 @@
         padding-top: 0.55rem;
         border-top: 1px solid #e5e7eb;
         color: #6b7280;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
         line-height: 1.3;
       }
     </style>
@@ -64,8 +162,14 @@
       <p>{{site_index_description}}</p>
     </header>
 
-    <main>
-      {{content}}
+    <main class="home-grid">
+      <section class="home-partition" aria-labelledby="embeddings-heading">
+        <h2 id="embeddings-heading">embeddings</h2>
+        <p class="embedding-placeholder">Semantic projection pending.</p>
+      </section>
+      <section class="home-partition posts-partition" aria-label="posts">
+        {{content}}
+      </section>
     </main>
 
     <footer>

@@ -1,13 +1,13 @@
 {
   "site": {
-    "title": "(yetanother|that)raj",
+    "title": "YET ANOTHER RAJ",
     "author": "Raj",
     "description": "Personal notes and experiments from building a modern TypeScript static site generator.",
     "language": "en",
     "baseUrl": "https://yetanotherraj.com",
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
-    "footer": "© 2026 [That Raj]. Licensed under CC BY-SA 4.0.",
+    "footer": "© 2026 That Raj. Licensed under CC BY-SA 4.0.",
     "theme": "themes/light.css",
     "font": "fonts/terminess.css",
     "assistant": "his AI"

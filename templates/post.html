@@ -22,12 +22,12 @@
       }
 
       body {
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'Terminess', 'Terminess Nerd Font', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
         width: 100%;
         margin: 0;
         padding: 0.35rem 0.4rem;
         line-height: 1.45;
-        font-size: 0.95rem;
+        font-size: 1.14rem;
         overflow: hidden;
         box-sizing: border-box;
       }
@@ -52,31 +52,57 @@
 
       .header {
         flex: 0 0 auto;
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 0.35rem;
         min-height: 0;
+      }
+
+      .post-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .post-heading h1 {
+        min-width: 0;
       }
 
       .header a {
         color: inherit;
         text-decoration: none;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
         font-style: normal;
         white-space: nowrap;
       }
 
       .header h1 {
-        margin: 0.08rem 0 0;
-        font-size: 1.35rem;
+        margin: 0;
+        font-size: 1.62rem;
       }
 
       .meta {
         color: #666;
         margin: 0.04rem 0 0;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
       }
+
+      .post-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: baseline;
+        gap: 0.75rem;
+        width: 100%;
+      }
+
+      .post-meta span {
+        min-width: 0;
+        white-space: nowrap;
+      }
+
+      .post-meta span:nth-child(1) { text-align: left; }
+      .post-meta span:nth-child(2) { text-align: center; }
+      .post-meta span:nth-child(3) { text-align: right; }
 
       main {
         display: flex;
@@ -122,7 +148,7 @@
 
       .ssg-pane__header h2 {
         margin: 0;
-        font-size: 0.88rem;
+        font-size: 1.06rem;
         line-height: 1.2;
       }
 
@@ -174,7 +200,7 @@
       .ssg-image figcaption {
         border-top: 1px solid #e5e7eb;
         color: #6b7280;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
         margin-top: 0.35rem;
         padding-top: 0.3rem;
         text-align: center;
@@ -192,7 +218,7 @@
         display: flex;
         flex-direction: column;
         gap: 0.1rem;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
         line-height: 1.25;
       }
 
@@ -208,7 +234,7 @@
       .canvas-index__item--depth-6 { padding-left: 1.2rem; }
 
       .canvas-annotation-ref {
-        font-size: 0.72em;
+        font-size: 0.86em;
         margin-left: 0.12rem;
       }
 
@@ -217,7 +243,7 @@
         padding: 0.25rem 0 0.25rem 0.45rem;
         margin-bottom: 0.35rem;
         color: #4b5563;
-        font-size: 0.82rem;
+        font-size: 0.98rem;
         line-height: 1.32;
       }
 
@@ -249,7 +275,7 @@
 
       .agent-session h4 {
         margin: 0 0 0.5rem;
-        font-size: 0.9rem;
+        font-size: 1.08rem;
       }
 
       footer {
@@ -258,7 +284,7 @@
         padding-top: 0.25rem;
         border-top: 1px solid #e5e7eb;
         color: #6b7280;
-        font-size: 0.78rem;
+        font-size: 0.94rem;
         font-style: normal;
         line-height: 1.25;
         white-space: nowrap;
@@ -270,11 +296,11 @@
   <body>
     <main>
       <header class="header tex2jax_ignore">
-        <div>
-          <a class="site-title" href="../">{{site_title}}</a>
+        <div class="post-heading">
           <h1>{{title}}</h1>
-          <p class="meta">created {{created_date}} · updated {{updated_date}} · hash {{content_hash}}</p>
+          <a class="site-title" href="../">{{site_title}}</a>
         </div>
+        <p class="meta post-meta"><span>created {{created_date}}</span><span>updated {{updated_date}}</span><span>hash {{content_hash}}</span></p>
       </header>
 
       <article>

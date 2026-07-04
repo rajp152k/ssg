@@ -108,7 +108,6 @@ The config file is now a first-class way to drive templates and defaults.
     "indexDescription": "Latest posts from the journey.",
     "footer": "(C) {{site_copyright_year}} 'The Raj'",
     "theme": "themes/light.css",
-    "font": "fonts/terminess.css",
     "assistant": "his AI"
   },
   "paths": {
@@ -151,17 +150,9 @@ The generator keeps styling simple: set a single stylesheet path with `site.them
 
 Theme assets are copied from your `templates` directory into generated output. `{{css_import}}` injects the configured stylesheet in the `<head>` of both default templates. The bundled default stylesheet is `templates/themes/light.css`.
 
-To layer in a font, set `site.font`:
+The default site config uses `templates/fonts/terminess.css` for a compact monospace look across prose, code, captions, and pane chrome.
 
-```json
-"site": {
-  "font": "fonts/terminess.css"
-}
-```
-
-If `site.font` points to a CSS file, it is copied from `templates` and linked in `<head>`. If it points to a font asset (`woff`, `woff2`, `ttf`, `otf`, `eot`, `svg`), the build injects a `@font-face` declaration automatically and applies it site-wide.
-
-A starter font file is available at `templates/fonts/terminess.css`.
+If you want to bundle a custom font later, set `site.font`. CSS files are copied and linked; font assets (`woff`, `woff2`, `ttf`, `otf`, `eot`, `svg`) are copied and injected with `@font-face`.
 
 ## Post state
 

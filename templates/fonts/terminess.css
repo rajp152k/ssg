@@ -5,20 +5,16 @@
 body,
 pre,
 code,
+figcaption,
 .ssg-pane,
 .ssg-pane__header,
-.ssg-pane__body {
+.ssg-pane__body,
+.posts-table {
   font-family: var(--site-font-family);
 }
 
 /*
-  If you install Terminess on your system, this lets you use it immediately.
-  To bundle the font file(s), copy them into `templates/fonts/` and update this rule
-  to a local @font-face declaration:
-
-  @font-face {
-    font-family: 'Terminess';
-    src: url('Terminess.woff2') format('woff2');
-    font-display: swap;
-  }
+  If you install Terminess on your system, this uses it immediately.
+  To bundle font files later, copy them into templates/fonts/ and replace this
+  with a local @font-face declaration.
 */

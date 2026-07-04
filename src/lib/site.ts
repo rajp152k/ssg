@@ -574,9 +574,9 @@ function renderPostsIndexTemplate(
   themeImport: string,
   fontImport: string,
 ): string {
-  const items = posts
+  const rows = posts
     .map((post) => {
-      return `<li><a href="./${post.metadata.slug}/">${post.metadata.title}</a> <time datetime="${post.metadata.isoDate}">${formatDate(post.metadata.date)}</time></li>`;
+      return `<tr><td><a href="./${post.metadata.slug}/">${post.metadata.title}</a></td><td><time datetime="${post.metadata.updatedAt.toISOString()}">${formatDate(post.metadata.updatedAt)}</time></td><td><code>${post.metadata.shortHash}</code></td></tr>`;
     })
     .join('\n');
 
@@ -585,7 +585,7 @@ function renderPostsIndexTemplate(
     buildTemplateContext(config, {
       title: config.site.indexTitle,
       page_title: config.site.indexTitle,
-      content: `<ul>${items}</ul>`,
+      content: `<table class="posts-table"><thead><tr><th>post</th><th>updated</th><th>hash</th></tr></thead><tbody>${rows}</tbody></table>`,
       description: config.site.indexDescription,
       css_import: themeImport,
       font_import: fontImport,
