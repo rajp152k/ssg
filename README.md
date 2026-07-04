@@ -107,11 +107,7 @@ The config file is now a first-class way to drive templates and defaults.
     "indexTitle": "Posts",
     "indexDescription": "Latest posts from the journey.",
     "footer": "(C) {{site_copyright_year}} 'The Raj'",
-    "theme": {
-      "dark": "themes/dark.css",
-      "light": "themes/light.css",
-      "default": "system"
-    },
+    "theme": "themes/light.css",
     "font": "fonts/terminess.css",
     "assistant": "his AI"
   },
@@ -140,37 +136,20 @@ These keys are available as template variables:
 - `{{site_copyright_year}}` (derived at build time)
 - `{{author}}`
 - `{{assistant}}`
-- `{{css_import}}` (theme controls + theme stylesheet tags for `site.theme`)
+- `{{css_import}}` (stylesheet tag for `site.theme`)
 - `{{font_import}}` (optional stylesheet or inline font declaration for configured `site.font`)
 
-## Theming
+## Styling
 
-You can now wire in a light/dark theme pair directly from the config:
-
-```json
-"site": {
-  "theme": {
-    "dark": "themes/dark.css",
-    "light": "themes/light.css",
-    "default": "system"
-  }
-}
-```
-
-The generated pages include a compact button in the top-right that cycles through:
-- `System` (follows your OS preference)
-- `Light`
-- `Dark`
-
-You can also continue using a single theme path for legacy behavior:
+The generator keeps styling simple: set a single stylesheet path with `site.theme`:
 
 ```json
 "site": {
-  "theme": "themes/dark.css"
+  "theme": "themes/light.css"
 }
 ```
 
-Theme assets are loaded from your `templates` directory into generated output. `{{css_import}}` is injected in the `<head>` of both default templates.
+Theme assets are copied from your `templates` directory into generated output. `{{css_import}}` injects the configured stylesheet in the `<head>` of both default templates. The bundled default stylesheet is `templates/themes/light.css`.
 
 To layer in a font, set `site.font`:
 
@@ -182,7 +161,69 @@ To layer in a font, set `site.font`:
 
 If `site.font` points to a CSS file, it is copied from `templates` and linked in `<head>`. If it points to a font asset (`woff`, `woff2`, `ttf`, `otf`, `eot`, `svg`), the build injects a `@font-face` declaration automatically and applies it site-wide.
 
-A basic bundled theme pair is included as `templates/themes/dark.css` and `templates/themes/light.css`, and a starter font file is available at `templates/fonts/terminess.css`.
+A starter font file is available at `templates/fonts/terminess.css`.
+
+## Post state
+
+Posts can keep authored metadata minimal. The SSG owns `.ssg/state.json` and updates it during builds.
+
+Per post, state tracks:
+
+- `createdAt`
+- `updatedAt`
+- `contentHash`
+
+Commit `.ssg/state.json`, but do not edit it manually. The post header renders created/updated dates and a short content hash from this state. Authored `date` metadata is optional and only seeds `createdAt` for existing/simple migration cases.
+
+## Canvas posts
+
+Directory posts can use a canvas layout with a generated index and annotation rail:
+
+```json
+{
+  "title": "Canvas Layout",
+  "date": "2026-07-03",
+  "panes": [
+    { "id": "index", "generated": "index", "source": "canvas" },
+    { "id": "canvas", "file": "canvas.md" },
+    { "id": "annotations", "generated": "annotations", "source": "canvas" }
+  ],
+  "layout": { "preset": "canvas" },
+  "sync": { "enabled": false, "source": "canvas" }
+}
+```
+
+Inline annotation syntax in `canvas.md`:
+
+```md
+Short note. [[note: This appears in the right annotation rail.]]
+
+Longer note reference. [[@detail]]
+
+[[annotation:detail]]
+Longer annotation body.
+[[/annotation]]
+```
+
+The left index is generated from canvas headings. The right annotation rail scroll-locks to the canvas and highlights the active note.
+
+## Markdown niceties
+
+Canvas and regular Markdown posts support:
+
+- Mermaid fences:
+  ````md
+  ```mermaid
+  graph TD
+    A --> B
+  ```
+  ````
+- LaTeX math via MathJax: `$x^2$` and `$$x^2$$`
+- Fenced code blocks with language classes, e.g. ```` ```ts ````
+- Boxed images with captions from image title or alt text:
+  ```md
+  ![Alt caption](diagram.png "Preferred caption")
+  ```
 
 ## Commands
 
@@ -232,4 +273,4 @@ npm run dev -- --config=./configs/blog.config.json
 - Generated site output (`public/`) is written fresh each run.
 - Frontmatter parsing currently uses `gray-matter`.
 - Markdown conversion currently uses `marked`.
-- This is intentionally minimal; later phases can add collections, RSS, themes, bundling, plugin hooks, and asset pipelines.
+- This is intentionally minimal; later phases can add collections, RSS, bundling, plugin hooks, and asset pipelines.

@@ -65,6 +65,16 @@ pre {
   border-radius: 0;
 }
 
+.ssg-image {
+  border-color: var(--tbm-border);
+  background: #f8f2e3;
+}
+
+.ssg-image figcaption {
+  border-top-color: var(--tbm-border);
+  color: var(--tbm-muted);
+}
+
 .agent-session {
   border-color: var(--tbm-border);
   border-radius: 0;

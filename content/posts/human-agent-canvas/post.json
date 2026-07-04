@@ -1,15 +1,16 @@
 {
-  "title": "Human-Agent Workbench Layout",
+  "title": "Canvas Layout",
   "date": "2026-07-03",
   "panes": [
-    { "id": "human", "title": "{{author}}" },
-    { "id": "agent", "title": "{{assistant}}" }
+    { "id": "index", "title": "Index", "generated": "index", "source": "canvas" },
+    { "id": "canvas", "title": "Canvas", "file": "canvas.md" },
+    { "id": "annotations", "title": "Annotations", "generated": "annotations", "source": "canvas" }
   ],
   "layout": {
-    "preset": "1x2"
+    "preset": "canvas"
   },
   "sync": {
-    "enabled": true,
-    "source": "human"
+    "enabled": false,
+    "source": "canvas"
   }
 }

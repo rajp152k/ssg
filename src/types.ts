@@ -10,10 +10,12 @@ export interface RawPostPaneConfig {
   id: PostPaneId;
   title?: string;
   file?: string;
+  generated?: 'index' | 'annotations';
+  source?: PostPaneId;
 }
 
 export interface RawPostLayoutConfig {
-  preset?: '2x1' | '1x2';
+  preset?: '2x1' | '1x2' | 'canvas';
   columns?: string;
   rows?: string;
   areas?: string[][];
@@ -35,6 +37,11 @@ export interface PostMetadata {
   title: string;
   date: Date;
   isoDate: string;
+  createdAt: Date;
+  updatedAt: Date;
+  contentHash: string;
+  shortHash: string;
+  authoredDate?: Date;
   slug: string;
   source: string;
 }

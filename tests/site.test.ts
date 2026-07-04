@@ -134,77 +134,6 @@ describe('site build', () => {
     }
   });
 
-  it('injects theme switcher markup when dark and light themes are configured', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-theme-switcher-'));
-    const postsDir = path.join(tmp, 'content', 'posts');
-    const templatesDir = path.join(tmp, 'templates');
-    const outputDir = path.join(tmp, 'public');
-
-    fs.mkdirSync(postsDir, { recursive: true });
-    fs.mkdirSync(templatesDir, { recursive: true });
-
-    fs.writeFileSync(
-      path.join(templatesDir, 'post.html'),
-      '<!doctype html><html><head>{{css_import}}</head><body>{{title}}</body></html>',
-      'utf8',
-    );
-    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{css_import}}{{content}}', 'utf8');
-
-    fs.mkdirSync(path.join(templatesDir, 'themes'), { recursive: true });
-    fs.writeFileSync(path.join(templatesDir, 'themes', 'dark.css'), 'body { background: #000; }', 'utf8');
-    fs.writeFileSync(path.join(templatesDir, 'themes', 'light.css'), 'body { background: #fff; }', 'utf8');
-
-    fs.writeFileSync(
-      path.join(postsDir, 'sample.md'),
-      '---\ntitle: Themed Post\ndate: 2026-07-02\n---\n\nThemed output with switcher.',
-      'utf8',
-    );
-
-    const config: SsgConfig = {
-      sourceDir: tmp,
-      postsDir,
-      templatesDir,
-      outputDir,
-      site: {
-        title: 'Test Site',
-        author: 'Author',
-        description: 'desc',
-        language: 'en',
-        baseUrl: '',
-        indexTitle: 'Posts',
-        indexDescription: 'desc',
-        footer: 'Footer',
-        theme: {
-          dark: 'themes/dark.css',
-          light: 'themes/light.css',
-          default: 'system',
-        },
-      },
-      dev: {
-        host: '127.0.0.1',
-        port: 3000,
-      },
-    };
-
-    try {
-      buildSite(config);
-
-      const post = fs.readFileSync(path.join(outputDir, 'themed-post', 'index.html'), 'utf8');
-      expect(post).toContain('id="ssg-theme-link"');
-      expect(post).toContain('/themes/dark.css');
-      expect(post).toContain('/themes/light.css');
-      expect(post).toContain('ssg-theme-switcher');
-      expect(post).toContain('ssg-theme-switcher-button');
-      expect(post).toContain('ssg-theme-switcher-style');
-      expect(post).toContain('"defaultMode":"system"');
-
-      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
-      expect(index).toContain('id="ssg-theme-link"');
-      expect(index).toContain('system');
-    } finally {
-      fs.rmSync(tmp, { recursive: true, force: true });
-    }
-  });
 
   it('copies configured font css to output and injects it into templates', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-font-'));
@@ -477,6 +406,76 @@ describe('site build', () => {
       expect(post).toContain('<p>2026-07-02</p>');
       expect(post).toContain('<strong>sample</strong>');
       expect(post).toContain('<h1>Sample</h1>');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('renders canvas layout with generated index and annotations', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-canvas-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '<article>{{workbench_html}}</article>{{workbench_script}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+
+    const postDir = path.join(postsDir, 'canvas-post');
+    fs.mkdirSync(postDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(postDir, 'post.json'),
+      JSON.stringify(
+        {
+          title: 'Canvas Post',
+          date: '2026-07-03',
+          panes: [
+            { id: 'index', title: 'Index', generated: 'index', source: 'canvas' },
+            { id: 'canvas', title: 'Canvas', file: 'canvas.md' },
+            { id: 'annotations', title: 'Annotations', generated: 'annotations', source: 'canvas' },
+          ],
+          layout: { preset: 'canvas' },
+          sync: { enabled: false, source: 'canvas' },
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+    fs.writeFileSync(
+      path.join(postDir, 'canvas.md'),
+      '# Canvas\n\n## Section\n\nText [[note: Inline annotation.]] and a long note [[@detail]].\n\n[[annotation:detail]]\nLong annotation.\n[[/annotation]]',
+      'utf8',
+    );
+
+    const config: SsgConfig = {
+      sourceDir: tmp,
+      postsDir,
+      templatesDir,
+      outputDir,
+      site: {
+        title: 'Test Site',
+        author: 'Author',
+        description: 'desc',
+        language: 'en',
+        baseUrl: '',
+        indexTitle: 'Posts',
+        indexDescription: 'desc',
+        footer: '',
+      },
+      dev: { host: '127.0.0.1', port: 3000 },
+    };
+
+    try {
+      buildSite(config);
+      const post = fs.readFileSync(path.join(outputDir, 'canvas-post', 'index.html'), 'utf8');
+      expect(post).toContain('data-pane-id="canvas"');
+      expect(post).toContain('class="canvas-index"');
+      expect(post).toContain('href="#section"');
+      expect(post).toContain('data-annotation-ref="note-1"');
+      expect(post).toContain('data-annotation-id="detail"');
+      expect(post).toContain('syncCanvasAnnotations');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

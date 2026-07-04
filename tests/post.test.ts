@@ -57,14 +57,16 @@ From filename title.`,
     }
   });
 
-  it('throws if required date is missing', () => {
+  it('loads posts without authored date metadata', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
     const file = path.join(tmp, 'missing-date.md');
 
     createTempFile(file, '---\ntitle: No Date\n---\n\nOops.');
 
     try {
-      expect(() => loadPost(file)).toThrow('Missing required date');
+      const post = loadPost(file);
+      expect(post.metadata.title).toBe('No Date');
+      expect(post.metadata.authoredDate).toBeUndefined();
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -132,7 +134,7 @@ From filename title.`,
     }
   });
 
-  it('ignores extra pane ids in post config and keeps human+agent only', () => {
+  it('keeps configured pane ids in order', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
     const postDir = path.join(tmp, 'coauthoring-post');
 
@@ -154,13 +156,15 @@ From filename title.`,
     };
 
     fs.writeFileSync(path.join(postDir, 'post.json'), JSON.stringify(config, null, 2), 'utf8');
-    createTempFile(path.join(postDir, 'human.md'), '# Human\n\nPrimary text.');
+    createTempFile(path.join(postDir, 'abstract.md'), '# Abstract\n\nSummary.');
     createTempFile(path.join(postDir, 'agent.md'), '# Agent\n\nAgent text.');
+    createTempFile(path.join(postDir, 'view.md'), '# View\n\nView text.');
+    createTempFile(path.join(postDir, 'human.md'), '# Human\n\nPrimary text.');
 
     try {
       const post = loadPost(postDir);
-      expect(post.panes.map((pane) => pane.id)).toEqual(['human', 'agent']);
-      expect(post.panes.map((pane) => pane.title)).toEqual(['Human notes', 'Agent draft']);
+      expect(post.panes.map((pane) => pane.id)).toEqual(['abstract', 'agent', 'view', 'human']);
+      expect(post.panes.map((pane) => pane.title)).toEqual(['Abstract notes', 'Agent draft', 'View notes', 'Human notes']);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -190,6 +194,26 @@ From filename title.`,
       const postSources = collectPostSources(tmp);
       expect(postSources).toHaveLength(2);
       expect(postSources).toEqual(expect.arrayContaining([postDir, path.join(tmp, 'nested', 'md-post.md')]));
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('renders markdown niceties for mermaid, code, math, and captioned images', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
+    const filePath = path.join(tmp, 'niceties.md');
+    createTempFile(
+      filePath,
+      '---\ntitle: Niceties\ndate: 2026-07-03\n---\n\n```mermaid\ngraph TD\n  A-->B\n```\n\n```ts\nconst x = 1;\n```\n\nInline math $x^2$.\n\n![System diagram](diagram.png "A boxed diagram")',
+    );
+
+    try {
+      const post = loadPost(filePath);
+      expect(post.bodyHtml).toContain('<pre class="mermaid">graph TD');
+      expect(post.bodyHtml).toContain('<code class="language-ts">');
+      expect(post.bodyHtml).toContain('$x^2$');
+      expect(post.bodyHtml).toContain('<figure class="ssg-image">');
+      expect(post.bodyHtml).toContain('<figcaption>A boxed diagram</figcaption>');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

@@ -3,7 +3,8 @@ import path from 'node:path';
 import type { Post, PostLayout } from '../types';
 import { renderTemplate, formatDate } from './template';
 import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
-import type { SsgConfig, ThemeMode } from '../config';
+import { applyPostState, getStatePath } from './state';
+import type { SsgConfig } from '../config';
 
 type TemplateContext = Record<string, string>;
 
@@ -273,6 +274,41 @@ const WORKBENCH_SCRIPT = `
     pendingSyncTimerBySourceId.delete(sourceId);
   };
 
+  function syncCanvasAnnotations() {
+    const canvas = paneContentById.get('canvas');
+    const annotations = paneContentById.get('annotations');
+    if (!(canvas instanceof HTMLElement) || !(annotations instanceof HTMLElement)) {
+      return;
+    }
+
+    const refs = Array.from(canvas.querySelectorAll('[data-annotation-ref]'));
+    if (refs.length === 0) {
+      return;
+    }
+
+    const active = refs.reduce((current, ref) => {
+      if (!(ref instanceof HTMLElement)) {
+        return current;
+      }
+
+      return ref.offsetTop <= canvas.scrollTop + canvas.clientHeight * 0.4 ? ref : current;
+    }, refs[0]);
+
+    if (!(active instanceof HTMLElement)) {
+      return;
+    }
+
+    const annotationId = active.getAttribute('data-annotation-ref');
+    const target = annotationId ? annotations.querySelector('[data-annotation-id="' + annotationId + '"]') : null;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    annotations.querySelectorAll('[data-annotation-id]').forEach((note) => note.classList.remove('is-active'));
+    target.classList.add('is-active');
+    annotations.scrollTo({ top: Math.max(0, target.offsetTop - 16), behavior: 'smooth' });
+  }
+
   for (const pane of paneElements) {
     const paneId = pane.getAttribute('data-pane-id');
     const content = pane.querySelector('[data-pane-content]');
@@ -283,6 +319,10 @@ const WORKBENCH_SCRIPT = `
     content.addEventListener(
       'scroll',
       () => {
+        if (paneId === 'canvas') {
+          syncCanvasAnnotations();
+        }
+
         if (!syncEnabled) {
           return;
         }
@@ -327,6 +367,8 @@ const WORKBENCH_SCRIPT = `
       { passive: true },
     );
   }
+
+  syncCanvasAnnotations();
 })();
 </script>
 
@@ -342,6 +384,9 @@ if (window.mermaid && document.querySelector('.mermaid')) {
 
 <script>
 window.MathJax = {
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore',
+  },
   tex: {
     inlineMath: [['$', '$'], ['\\(', '\\)']],
     displayMath: [['$$', '$$'], ['\\[', '\\]']],
@@ -446,191 +491,14 @@ function buildTemplateAssetImport(href: string): string {
   return `<link rel="stylesheet" href="${href}" />`;
 }
 
-function isThemeMode(value: unknown): value is ThemeMode {
-  return value === 'system' || value === 'light' || value === 'dark';
-}
-
-function buildThemeSwitcherImport(theme: { darkHref: string; lightHref: string; defaultMode: ThemeMode }): string {
-  const initialHref = theme.defaultMode === 'light' ? theme.lightHref : theme.darkHref;
-  const themeJson = JSON.stringify(theme);
-
-  return `
-    <link id="ssg-theme-link" rel="stylesheet" href="${initialHref}" data-ssg-theme />
-    <style id="ssg-theme-switcher-style">
-      #ssg-theme-switcher {
-        position: fixed;
-        top: 0.75rem;
-        right: 0.75rem;
-        z-index: 50;
-      }
-
-      #ssg-theme-switcher-button {
-        border: 1px solid #2a2f3a;
-        border-radius: 0;
-        background: rgba(10, 10, 10, 0.75);
-        color: #f5f5f5;
-        padding: 0.32rem 0.5rem;
-        font: 11px/1.2 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-        cursor: pointer;
-      }
-
-      #ssg-theme-switcher-button:hover {
-        opacity: 0.9;
-      }
-
-      :root[data-ssg-theme="light"] #ssg-theme-switcher-button {
-        border-color: #6d7584;
-        background: rgba(247, 242, 231, 0.92);
-        color: #2b2f36;
-      }
-    </style>
-    <script>
-      (function () {
-        const themeConfig = ${themeJson};
-        const STORAGE_KEY = 'ssg-theme-preference';
-        const systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        const MODES = ['system', 'light', 'dark'];
-
-        const modeLabels = {
-          system: 'System',
-          light: 'Light',
-          dark: 'Dark',
-        };
-
-        const isThemeMode = (value) => value === 'dark' || value === 'light' || value === 'system';
-        const readMode = () => {
-          try {
-            const value = window.localStorage.getItem(STORAGE_KEY);
-            return isThemeMode(value) ? value : themeConfig.defaultMode;
-          } catch (_error) {
-            return themeConfig.defaultMode;
-          }
-        };
-
-        const modeToActual = (mode) => {
-          if (mode !== 'system') {
-            return mode;
-          }
-
-          return systemQuery.matches ? 'dark' : 'light';
-        };
-
-        const writeMode = (mode) => {
-          try {
-            window.localStorage.setItem(STORAGE_KEY, mode);
-          } catch (_error) {
-            // ignore
-          }
-        };
-
-        const applyTheme = (mode) => {
-          const actual = modeToActual(mode);
-          const link = document.getElementById('ssg-theme-link');
-          if (link) {
-            link.setAttribute('href', actual === 'dark' ? themeConfig.darkHref : themeConfig.lightHref);
-            link.setAttribute('data-ssg-theme', actual);
-          }
-
-          document.documentElement.setAttribute('data-ssg-theme', actual);
-          const button = document.getElementById('ssg-theme-switcher-button');
-          if (button) {
-            const label = 'Theme: ' + (modeLabels[mode] || 'System');
-            button.textContent = label;
-          }
-        };
-
-        const setMode = (mode) => {
-          const nextMode = isThemeMode(mode) ? mode : 'system';
-          writeMode(nextMode);
-          applyTheme(nextMode);
-        };
-
-        const cycleMode = () => {
-          const current = readMode();
-          const index = MODES.indexOf(current);
-          const nextMode = MODES[(index + 1) % MODES.length];
-          setMode(nextMode);
-        };
-
-        const applySystemMode = () => {
-          if (readMode() === 'system') {
-            applyTheme('system');
-          }
-        };
-
-        const mountSwitcher = () => {
-          if (document.getElementById('ssg-theme-switcher')) {
-            return;
-          }
-
-          const wrapper = document.createElement('div');
-          wrapper.id = 'ssg-theme-switcher';
-
-          const button = document.createElement('button');
-          button.id = 'ssg-theme-switcher-button';
-          button.type = 'button';
-          button.addEventListener('click', cycleMode);
-
-          wrapper.append(button);
-          document.body.append(wrapper);
-          const mode = readMode();
-          applyTheme(mode);
-        };
-
-        if (systemQuery.addEventListener) {
-          systemQuery.addEventListener('change', applySystemMode);
-        } else if (typeof (systemQuery as any).addListener === 'function') {
-          (systemQuery as any).addListener(applySystemMode);
-        }
-
-        const initialMode = readMode();
-        applyTheme(initialMode);
-
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', mountSwitcher, { once: true });
-        } else {
-          mountSwitcher();
-        }
-      })();
-    </script>
-  `;
-}
-
-function resolveThemeConfig(config: SsgConfig): string {
-  const configuredTheme = config.site.theme;
-
-  if (typeof configuredTheme === 'string') {
-    const singleHref = resolveTemplateAssetHref(config, configuredTheme, 'theme');
-    return singleHref ? buildTemplateAssetImport(singleHref) : '';
-  }
-
-  if (!configuredTheme || typeof configuredTheme !== 'object') {
+function buildThemeImport(config: SsgConfig): string {
+  const source = (config.site.theme ?? '').trim();
+  if (!source) {
     return '';
   }
 
-  const darkSource = configuredTheme.dark?.trim() ?? '';
-  const lightSource = configuredTheme.light?.trim() ?? '';
-  const resolvedDark = darkSource ? resolveTemplateAssetHref(config, darkSource, 'theme') : '';
-  const resolvedLight = lightSource ? resolveTemplateAssetHref(config, lightSource, 'theme') : '';
-
-  if (!resolvedDark || !resolvedLight) {
-    const single = resolvedDark || resolvedLight;
-    return single ? buildTemplateAssetImport(single) : '';
-  }
-
-  const normalizedDefault: ThemeMode = isThemeMode(configuredTheme.default)
-    ? configuredTheme.default
-    : 'system';
-
-  return buildThemeSwitcherImport({
-    darkHref: resolvedDark,
-    lightHref: resolvedLight,
-    defaultMode: normalizedDefault,
-  });
-}
-
-function buildThemeImport(config: SsgConfig): string {
-  return resolveThemeConfig(config);
+  const href = resolveTemplateAssetHref(config, source, 'theme');
+  return buildTemplateAssetImport(href);
 }
 
 function buildFontImport(config: SsgConfig): string {
@@ -780,7 +648,7 @@ function buildWorkbenchMarkup(post: Post, config: SsgConfig): string {
       #ssg-workbench {
         ${gridStyle}
         display: grid;
-        gap: 0.4rem;
+        gap: 0.25rem;
         height: 100%;
         min-height: 0;
       }
@@ -825,12 +693,17 @@ export function buildSite(config: SsgConfig): void {
   const fontImport = buildFontImport(config);
 
   const postSources = collectPostSources(postsDir);
-  const posts = sortPostsByDateDesc(postSources.map((source) => loadPost(source)));
+  const posts = postSources.map((source) => loadPost(source));
+  applyPostState(posts, getStatePath(config.sourceDir));
+  const sortedPosts = sortPostsByDateDesc(posts);
 
-  for (const post of posts) {
+  for (const post of sortedPosts) {
     const pageContext = buildTemplateContext(config, {
       title: post.metadata.title,
-      date: formatDate(post.metadata.date),
+      date: formatDate(post.metadata.createdAt),
+      created_date: formatDate(post.metadata.createdAt),
+      updated_date: formatDate(post.metadata.updatedAt),
+      content_hash: post.metadata.shortHash,
       content: post.bodyHtml,
       document_title: `${post.metadata.title} · ${config.site.title}`,
       document_description: `${post.metadata.title} by ${config.site.author}`,
@@ -846,6 +719,6 @@ export function buildSite(config: SsgConfig): void {
     writePage(outputDir, post.metadata.slug, pageHtml);
   }
 
-  const indexHtml = renderPostsIndexTemplate(posts, indexTemplate, config, themeImport, fontImport);
+  const indexHtml = renderPostsIndexTemplate(sortedPosts, indexTemplate, config, themeImport, fontImport);
   fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml, 'utf8');
 }

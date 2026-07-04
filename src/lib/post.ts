@@ -64,9 +64,9 @@ export function extractHeadingSignatures(markdown: string): string[] {
   return headings;
 }
 
-function parseDate(value: string | number | undefined, sourcePath: string): Date {
+function parseOptionalDate(value: string | number | undefined, sourcePath: string): Date | undefined {
   if (typeof value === 'undefined') {
-    throw new Error(`Missing required date in ${sourcePath}`);
+    return undefined;
   }
 
   const date = typeof value === 'number' ? new Date(value) : new Date(value);
@@ -75,6 +75,10 @@ function parseDate(value: string | number | undefined, sourcePath: string): Date
   }
 
   return date;
+}
+
+function buildUnstatedDate(authoredDate?: Date): Date {
+  return authoredDate ?? new Date(0);
 }
 
 function inferTitleFromPath(filePath: string): string {
@@ -94,7 +98,7 @@ function normalizePaneConfig(
     return defaultPaneDefinitions;
   }
 
-  const configured = new Map<string, RawPostPaneConfig>();
+  const normalized: RawPostPaneConfig[] = [];
 
   for (const pane of panes) {
     if (!pane || typeof pane.id !== 'string') {
@@ -106,22 +110,17 @@ function normalizePaneConfig(
       continue;
     }
 
-    if (id !== 'human' && id !== 'agent') {
-      continue;
-    }
-
     used.add(id);
-    configured.set(id, {
+    normalized.push({
       id,
       title: pane.title?.trim() || id,
       file: pane.file ?? `${id}.md`,
+      generated: pane.generated,
+      source: pane.source,
     });
   }
 
-  return [
-    configured.get('human') ?? { id: 'human', title: '{{author}}', file: 'human.md' },
-    configured.get('agent') ?? { id: 'agent', title: '{{assistant}}', file: 'agent.md' },
-  ];
+  return normalized.length > 0 ? normalized : defaultPaneDefinitions;
 }
 
 function applyAgentSessionSyntax(markdown: string): string {
@@ -145,7 +144,7 @@ function applyAgentSessionSyntax(markdown: string): string {
     const title = titleMatch?.[1] ?? 'Session';
     const sessionTitle = escapeHtml(title);
 
-    const body = marked.parse(sessionBody) as string;
+    const body = enhanceMarkdownHtml(marked.parse(sessionBody) as string);
     output += `<div class="agent-session"><h4>${sessionTitle}</h4>${body}</div>`;
     lastIndex = (match.index ?? 0) + block.length;
   }
@@ -154,9 +153,103 @@ function applyAgentSessionSyntax(markdown: string): string {
   return output;
 }
 
+interface RenderedCanvas {
+  bodyHtml: string;
+  headings: { id: string; depth: number; text: string }[];
+  annotations: { id: string; label: string; bodyHtml: string }[];
+}
+
+function slugifyFragment(value: string): string {
+  return normalizeHeadingText(value).replace(/\s+/g, '-');
+}
+
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]*>/g, '').trim();
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function enhanceMarkdownHtml(html: string): string {
+  return html
+    .replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (_match, diagram: string) => {
+      return `<pre class="mermaid">${decodeHtmlEntities(diagram).trim()}</pre>`;
+    })
+    .replace(/<p><img([^>]*)><\/p>/g, (_match, attributes: string) => {
+      const title = /title="([^"]*)"/.exec(attributes)?.[1];
+      const alt = /alt="([^"]*)"/.exec(attributes)?.[1];
+      const caption = title || alt;
+      const image = `<img${attributes}>`;
+
+      if (!caption) {
+        return `<figure class="ssg-image">${image}</figure>`;
+      }
+
+      return `<figure class="ssg-image">${image}<figcaption>${caption}</figcaption></figure>`;
+    });
+}
+
+function renderMarkdownWithHeadingIds(markdown: string): { bodyHtml: string; headings: { id: string; depth: number; text: string }[] } {
+  const used = new Map<string, number>();
+  const headings: { id: string; depth: number; text: string }[] = [];
+  const bodyHtml = enhanceMarkdownHtml(marked.parse(markdown) as string).replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, (_match, depthText: string, body: string) => {
+    const text = stripHtml(body);
+    const base = slugifyFragment(text) || 'section';
+    const count = used.get(base) ?? 0;
+    used.set(base, count + 1);
+    const id = count === 0 ? base : `${base}-${count + 1}`;
+    headings.push({ id, depth: Number(depthText), text });
+    return `<h${depthText} id="${id}">${body}</h${depthText}>`;
+  });
+
+  return { bodyHtml, headings };
+}
+
+function renderCanvasMarkdown(raw: string): RenderedCanvas {
+  const blockAnnotations = new Map<string, string>();
+  const withoutBlocks = raw.replace(/\[\[annotation:([\w-]+)\]\]([\s\S]*?)\[\[\/annotation\]\]/g, (_match, id: string, body: string) => {
+    blockAnnotations.set(id.trim(), body.trim());
+    return '';
+  });
+
+  const annotations: { id: string; label: string; bodyHtml: string }[] = [];
+  const emitted = new Map<string, string>();
+  let annotationNumber = 0;
+  const withRefs = withoutBlocks.replace(/\[\[note:\s*([\s\S]*?)\]\]|\[\[@([\w-]+)\]\]/g, (_match, note: string | undefined, id: string | undefined) => {
+    if (typeof note === 'string') {
+      annotationNumber += 1;
+      const noteId = `note-${annotationNumber}`;
+      annotations.push({ id: noteId, label: String(annotationNumber), bodyHtml: enhanceMarkdownHtml(marked.parse(note.trim()) as string) });
+      return `<sup class="canvas-annotation-ref" id="annotation-ref-${noteId}" data-annotation-ref="${noteId}"><a href="#annotation-${noteId}">${annotationNumber}</a></sup>`;
+    }
+
+    const trimmedId = (id ?? '').trim();
+    const existingLabel = emitted.get(trimmedId);
+    if (existingLabel) {
+      return `<sup class="canvas-annotation-ref" id="annotation-ref-${trimmedId}-${existingLabel}" data-annotation-ref="${trimmedId}"><a href="#annotation-${trimmedId}">${existingLabel}</a></sup>`;
+    }
+
+    annotationNumber += 1;
+    const label = String(annotationNumber);
+    emitted.set(trimmedId, label);
+    const body = blockAnnotations.get(trimmedId) ?? '';
+    annotations.push({ id: trimmedId, label, bodyHtml: body ? enhanceMarkdownHtml(marked.parse(body) as string) : FALLBACK_TEXT });
+    return `<sup class="canvas-annotation-ref" id="annotation-ref-${trimmedId}" data-annotation-ref="${trimmedId}"><a href="#annotation-${trimmedId}">${label}</a></sup>`;
+  });
+
+  const rendered = renderMarkdownWithHeadingIds(withRefs);
+  return { ...rendered, annotations };
+}
+
 function renderPaneMarkdown(raw: string, paneId: PostPaneId): string {
   const withSessions = paneId === 'agent' ? applyAgentSessionSyntax(raw) : raw;
-  return marked.parse(withSessions) as string;
+  return renderMarkdownWithHeadingIds(withSessions).bodyHtml;
 }
 
 function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
@@ -173,13 +266,40 @@ function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
   }
 
   const rawContent = fs.readFileSync(paneFile, 'utf8');
-  const bodyHtml = renderPaneMarkdown(rawContent, paneConfig.id);
+  const rendered = paneConfig.id === 'canvas'
+    ? renderCanvasMarkdown(rawContent)
+    : { bodyHtml: renderPaneMarkdown(rawContent, paneConfig.id) };
 
   return {
     id: paneConfig.id,
     title: paneConfig.title || paneConfig.id,
     file: paneFile,
     rawContent,
+    bodyHtml: rendered.bodyHtml,
+    missing: false,
+  };
+}
+
+function createGeneratedPane(paneConfig: RawPostPaneConfig, sourcePane: PostPane): PostPane {
+  const rendered = renderCanvasMarkdown(sourcePane.rawContent);
+  const id = paneConfig.id;
+  const title = paneConfig.title || id;
+  const bodyHtml = paneConfig.generated === 'annotations'
+    ? rendered.annotations.map((annotation) => `
+      <section class="canvas-annotation" id="annotation-${annotation.id}" data-annotation-id="${annotation.id}">
+        <a class="canvas-annotation__label" href="#annotation-ref-${annotation.id}">${annotation.label}</a>
+        <div class="canvas-annotation__body">${annotation.bodyHtml}</div>
+      </section>
+    `).join('') || '<p><em>No annotations.</em></p>'
+    : `<nav class="canvas-index">${rendered.headings.map((heading) => `
+      <a class="canvas-index__item canvas-index__item--depth-${heading.depth}" href="#${heading.id}" data-index-ref="${heading.id}">${escapeHtml(heading.text)}</a>
+    `).join('')}</nav>`;
+
+  return {
+    id,
+    title,
+    file: sourcePane.file,
+    rawContent: '',
     bodyHtml,
     missing: false,
   };
@@ -263,10 +383,18 @@ function buildDefaultLayout(paneIds: string[]): PostLayout {
   };
 }
 
-function buildPresetLayout(preset: '2x1' | '1x2', paneIds: string[]): PostLayout {
+function buildPresetLayout(preset: '2x1' | '1x2' | 'canvas', paneIds: string[]): PostLayout {
   const normalized = paneIds.map((id) => id.trim()).filter(Boolean);
   const first = normalized[0] ?? 'human';
   const second = normalized[1] ?? 'agent';
+
+  if (preset === 'canvas') {
+    return {
+      columns: '11rem minmax(0, 1fr) 15rem',
+      rows: '1fr',
+      areas: [['index', 'canvas', 'annotations']],
+    };
+  }
 
   if (preset === '2x1') {
     return {
@@ -298,7 +426,7 @@ function readPostConfig(postDir: string): RawPostConfig {
 function toPostObject(
   source: string,
   metadataTitle: string,
-  date: Date,
+  authoredDate: Date | undefined,
   config?: RawPostConfig,
 ): Post {
   const panesConfig = normalizePaneConfig(config?.panes);
@@ -306,7 +434,18 @@ function toPostObject(
   const fileSource = path.join(source, 'post.json');
   const configSource = config ? fileSource : source;
 
-  const panes = panesConfig.map((paneConfig) => createPane(source, paneConfig));
+  const loadedPanes = panesConfig
+    .filter((paneConfig) => !paneConfig.generated)
+    .map((paneConfig) => createPane(source, paneConfig));
+  const panes = panesConfig.map((paneConfig) => {
+    if (!paneConfig.generated) {
+      return loadedPanes.find((pane) => pane.id === paneConfig.id) ?? createPane(source, paneConfig);
+    }
+
+    const sourceId = paneConfig.source ?? 'canvas';
+    const sourcePane = loadedPanes.find((pane) => pane.id === sourceId) ?? loadedPanes[0];
+    return sourcePane ? createGeneratedPane(paneConfig, sourcePane) : createPane(source, paneConfig);
+  });
 
   const metadataSlugSource = config?.slug ?? metadataTitle;
   const slug = derivePostSlug(metadataSlugSource, configSource);
@@ -315,11 +454,18 @@ function toPostObject(
 
   const primaryPane = panes.find((pane) => pane.id === 'human') ?? panes[0];
 
+  const date = buildUnstatedDate(authoredDate);
+
   return {
     metadata: {
       title: metadataTitle,
       date,
       isoDate: date.toISOString(),
+      createdAt: date,
+      updatedAt: date,
+      contentHash: '',
+      shortHash: '',
+      authoredDate,
       slug,
       source,
     },
@@ -343,20 +489,25 @@ export function loadPost(filePath: string): Post {
     const title = typeof frontmatter.title === 'string' && frontmatter.title.trim().length > 0
       ? frontmatter.title.trim()
       : inferTitleFromPath(filePath);
-    const date = parseDate(frontmatter.date, filePath);
+    const authoredDate = parseOptionalDate(frontmatter.date, filePath);
     const metadataSlug = typeof frontmatter.slug === 'string' && frontmatter.slug.trim().length > 0
       ? frontmatter.slug
       : title;
 
     const slug = derivePostSlug(metadataSlug, filePath);
     const rawContent = parsed.content;
-    const bodyHtml = marked.parse(rawContent) as string;
+    const bodyHtml = renderMarkdownWithHeadingIds(rawContent).bodyHtml;
 
     return {
       metadata: {
         title,
-        date,
-        isoDate: date.toISOString(),
+        date: buildUnstatedDate(authoredDate),
+        isoDate: buildUnstatedDate(authoredDate).toISOString(),
+        createdAt: buildUnstatedDate(authoredDate),
+        updatedAt: buildUnstatedDate(authoredDate),
+        contentHash: '',
+        shortHash: '',
+        authoredDate,
         slug,
         source: filePath,
       },
@@ -388,7 +539,7 @@ export function loadPost(filePath: string): Post {
   const configTitle = typeof config.title === 'string' && config.title.trim().length > 0
     ? config.title.trim()
     : inferTitleFromPath(filePath);
-  const configDate = parseDate(config.date, path.join(filePath, 'post.json'));
+  const configDate = parseOptionalDate(config.date, path.join(filePath, 'post.json'));
   const post = toPostObject(filePath, configTitle, configDate, config);
   return post;
 }

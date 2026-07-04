@@ -15,12 +15,19 @@
         height: 100%;
       }
 
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
       body {
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-        width: min(100%, 1360px);
-        margin: 0 auto;
-        padding: 0.5rem 0.7rem;
-        line-height: 1.6;
+        width: 100%;
+        margin: 0;
+        padding: 0.35rem 0.4rem;
+        line-height: 1.45;
+        font-size: 0.95rem;
         overflow: hidden;
         box-sizing: border-box;
       }
@@ -29,23 +36,46 @@
       h2,
       h3 {
         margin-top: 0;
+        margin-bottom: 0.45rem;
+        line-height: 1.18;
+      }
+
+      p,
+      ul,
+      ol,
+      pre,
+      blockquote,
+      figure {
+        margin-top: 0.45rem;
+        margin-bottom: 0.45rem;
       }
 
       .header {
+        flex: 0 0 auto;
         display: flex;
         align-items: baseline;
         justify-content: space-between;
-        gap: 0.6rem;
+        gap: 0.35rem;
+        min-height: 0;
       }
 
       .header a {
         color: inherit;
         text-decoration: none;
+        font-size: 0.82rem;
+        font-style: normal;
+        white-space: nowrap;
+      }
+
+      .header h1 {
+        margin: 0.08rem 0 0;
+        font-size: 1.35rem;
       }
 
       .meta {
         color: #666;
-        margin-top: 0.15rem;
+        margin: 0.04rem 0 0;
+        font-size: 0.82rem;
       }
 
       main {
@@ -53,13 +83,14 @@
         flex-direction: column;
         min-height: 0;
         height: 100%;
-        gap: 0.35rem;
+        gap: 0.25rem;
       }
 
       article {
-        flex: 1;
+        flex: 1 1 auto;
         min-height: 0;
         display: flex;
+        overflow: hidden;
       }
 
       #ssg-workbench {
@@ -83,20 +114,20 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 0.4rem;
+        gap: 0.28rem;
         background: #f8fafc;
         border-bottom: 1px solid #e5e7eb;
-        padding: 0.32rem 0.55rem;
+        padding: 0.22rem 0.42rem;
       }
 
       .ssg-pane__header h2 {
         margin: 0;
-        font-size: 0.96rem;
+        font-size: 0.88rem;
         line-height: 1.2;
       }
 
       .ssg-pane__body {
-        padding: 0.5rem;
+        padding: 0.38rem;
         overflow: auto;
         min-height: 0;
         background: white;
@@ -108,10 +139,103 @@
         overflow: auto;
       }
 
+      .ssg-pane__body pre:not(.mermaid) {
+        border: 1px solid #d1d5db;
+        background: #f8fafc;
+        padding: 0.5rem;
+        line-height: 1.35;
+      }
+
+      .ssg-pane__body code {
+        border: 1px solid #e5e7eb;
+        background: #f3f4f6;
+        padding: 0.05rem 0.18rem;
+      }
+
+      .ssg-pane__body pre code {
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
+
+      .ssg-image {
+        border: 1px solid #d1d5db;
+        background: #f8fafc;
+        padding: 0.35rem;
+        margin: 0.65rem 0;
+      }
+
+      .ssg-image img {
+        display: block;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      .ssg-image figcaption {
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.82rem;
+        margin-top: 0.35rem;
+        padding-top: 0.3rem;
+        text-align: center;
+      }
+
+      [data-pane-id="canvas"] .ssg-pane__header {
+        display: none;
+      }
+
+      [data-pane-id="canvas"] .ssg-pane__body {
+        padding: 0.65rem 0.85rem;
+      }
+
+      .canvas-index {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        font-size: 0.82rem;
+        line-height: 1.25;
+      }
+
+      .canvas-index__item {
+        color: #374151;
+        text-decoration: none;
+      }
+
+      .canvas-index__item--depth-2 { padding-left: 0.4rem; }
+      .canvas-index__item--depth-3 { padding-left: 0.8rem; }
+      .canvas-index__item--depth-4,
+      .canvas-index__item--depth-5,
+      .canvas-index__item--depth-6 { padding-left: 1.2rem; }
+
+      .canvas-annotation-ref {
+        font-size: 0.72em;
+        margin-left: 0.12rem;
+      }
+
+      .canvas-annotation {
+        border-left: 2px solid #e5e7eb;
+        padding: 0.25rem 0 0.25rem 0.45rem;
+        margin-bottom: 0.35rem;
+        color: #4b5563;
+        font-size: 0.82rem;
+        line-height: 1.32;
+      }
+
+      .canvas-annotation.is-active {
+        border-left-color: #111827;
+        color: #111827;
+      }
+
+      .canvas-annotation__label {
+        display: inline-block;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+      }
+
       pre.mermaid {
         background: #f8fafc;
         border: 1px dashed #94a3b8;
-        padding: 0.75rem;
+        padding: 0.5rem;
         border-radius: 0;
       }
 
@@ -129,11 +253,15 @@
       }
 
       footer {
-        margin-top: auto;
-        padding-top: 0.55rem;
+        flex: 0 0 auto;
+        margin-top: 0;
+        padding-top: 0.25rem;
         border-top: 1px solid #e5e7eb;
         color: #6b7280;
-        font-size: 0.9rem;
+        font-size: 0.78rem;
+        font-style: normal;
+        line-height: 1.25;
+        white-space: nowrap;
       }
     </style>
     {{css_import}}
@@ -141,11 +269,11 @@
   </head>
   <body>
     <main>
-      <header class="header">
+      <header class="header tex2jax_ignore">
         <div>
-          <a href="../">{{site_title}}</a>
+          <a class="site-title" href="../">{{site_title}}</a>
           <h1>{{title}}</h1>
-          <p class="meta">{{date}}</p>
+          <p class="meta">created {{created_date}} · updated {{updated_date}} · hash {{content_hash}}</p>
         </div>
       </header>
 
@@ -153,7 +281,7 @@
         {{workbench_html}}
       </article>
 
-      <footer>
+      <footer class="tex2jax_ignore">
         {{site_footer}}
       </footer>
     </main>
