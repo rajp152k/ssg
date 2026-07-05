@@ -264,4 +264,4 @@ npm run dev -- --config=./configs/blog.config.json
 - Generated site output (`public/`) is written fresh each run.
 - Frontmatter parsing currently uses `gray-matter`.
 - Markdown conversion currently uses `marked`.
-- This is intentionally minimal; later phases can add collections, RSS, bundling, plugin hooks, and asset pipelines.
+- The project is intentionally scoped to the features documented above.
