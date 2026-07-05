@@ -43,7 +43,6 @@ export function newCommand(options: NewPostOptions): void {
         { id: 'annotations', title: 'Annotations', generated: 'annotations', source: 'canvas' },
       ],
       layout: { preset: 'canvas' },
-      sync: { enabled: false, source: 'canvas' },
     },
     null,
     2,

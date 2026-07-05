@@ -22,7 +22,6 @@ export interface SiteConfig {
   footer: string;
   theme?: string;
   font?: string;
-  assistant?: string;
 }
 
 export interface DevConfig {
@@ -73,7 +72,6 @@ export const defaultConfig: SsgConfig = {
     indexDescription: 'Latest posts',
     footer: "(C) {{site_copyright_year}} 'The Raj'",
     theme: 'themes/light.css',
-    assistant: 'his AI',
   },
   dev: {
     host: '127.0.0.1',

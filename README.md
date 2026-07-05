@@ -4,24 +4,27 @@
 
 A lightweight TypeScript-based static site generator for learning the architecture and growing into a real platform.
 
-## Current architecture milestone (MVP)
+## Current architecture milestone
 
-The first iteration implements:
+The current iteration implements a canvas-native static site generator:
 
-- `content/posts` as the source of truth for pages
-- Markdown files with frontmatter
-- Strictly required `date` frontmatter for posts
-- Optional `title` and optional `slug` in frontmatter
-- A basic template system for:
+- `content/posts` as the source of truth for posts
+- canvas-style directory posts only
+- `post.json` for post metadata and layout declaration
+- `canvas.md` as the authored writing surface
+- generated index and annotations rails for canvas posts
+- SSG-owned post state in `.ssg/state.json`
+- a basic template system for:
   - post pages (`templates/post.html`)
-  - list page (`templates/index.html`)
-- Centralized config file (`ssg.config.json`)
+  - home page (`templates/index.html`)
+- centralized config file (`ssg.config.json`)
 - CLI commands:
   - `build` – render all posts to `public`
   - `dev` – local iterative workflow with watch + live reload
-- Output directory: `public`
+  - `new` – create a canvas-style post directory
+- output directory: `public`
 
-Only a date-based post model is implemented for now; tags/categories are intentionally out of scope in this phase.
+Manual tags/categories and legacy human/agent split panes are intentionally out of scope.
 
 ## Project structure
 
@@ -30,68 +33,40 @@ Only a date-based post model is implemented for now; tags/categories are intenti
 - `src/cli.ts` — command entrypoint
 - `src/commands/build.ts` — build command
 - `src/commands/dev.ts` — dev loop command (watch + server + reload)
-- `src/lib/post.ts` — markdown + frontmatter parsing + model
+- `src/commands/new.ts` — canvas post scaffolding command
+- `src/lib/post.ts` — canvas post loading + markdown rendering + model
 - `src/lib/site.ts` — site generation and template rendering
+- `src/lib/state.ts` — SSG-owned post state
 - `src/lib/template.ts` — basic template rendering helpers
-- `content/posts/` — markdown inputs and workbench post directories (legacy `.md` + directory bundles with `post.json`)
-- `templates/` — HTML layouts
+- `content/posts/` — canvas post directories
+- `templates/` — HTML layouts, theme, and font assets
 
 ## Post model
 
-`ssg` now supports **legacy single-file posts** and **workbench posts**.
-
-### Legacy markdown posts
-
-Each post file under `content/posts` can be a markdown file with frontmatter:
-
-- `title` (optional): defaults to filename
-- `date` (required): should be parseable by `new Date(value)`
-- `slug` (optional)
-
-### Workbench posts
-
-A workbench post is a directory, typically:
+Posts are canvas-style directories:
 
 ```text
 content/posts/my-topic/
   post.json
-  human.md
-  agent.md
+  canvas.md
 ```
 
-`post.json` controls metadata, pane order, and layout:
+`post.json` keeps structure small:
 
 ```json
 {
-  "title": "Human Agent Workbench",
-  "date": "2026-07-03",
+  "title": "My Topic",
   "panes": [
-    { "id": "human", "title": "Human", "file": "human.md" },
-    { "id": "agent", "title": "Agent", "file": "agent.md" }
+    { "id": "index", "title": "Index", "generated": "index", "source": "canvas" },
+    { "id": "canvas", "title": "Canvas", "file": "canvas.md" },
+    { "id": "annotations", "title": "Annotations", "generated": "annotations", "source": "canvas" }
   ],
-  "layout": {
-    "preset": "1x2"
-  },
-  "sync": {
-    "enabled": true,
-    "source": "human"
-  }
+  "layout": { "preset": "canvas" }
 }
 ```
 
-Supported pane presets:
+`canvas.md` is the authored surface. Headings generate the left index; inline annotation markers generate the right annotation rail.
 
-- `1x2` (equal columns)
-- `2x1` (first pane wider)
-
-When no layout is configured, `ssg` uses `1x2`.
-
-For synced workbench posts, headings are not validated during `build`.
-
-At runtime, scroll sync is intentionally disabled: pane scrolling is fully decoupled, so each pane scrolls independently.
-
-
-`src/lib/post.ts` normalizes both forms into a unified `Post` model so templates can render all posts consistently.
 ## Config (`ssg.config.json`)
 
 The config file is now a first-class way to drive templates and defaults.
@@ -108,7 +83,7 @@ The config file is now a first-class way to drive templates and defaults.
     "indexDescription": "Latest posts from the journey.",
     "footer": "(C) {{site_copyright_year}} 'The Raj'",
     "theme": "themes/light.css",
-    "assistant": "his AI"
+    "font": "fonts/TerminessNerdFontMono-Regular.ttf"
   },
   "paths": {
     "postsDir": "content/posts",
@@ -134,7 +109,6 @@ These keys are available as template variables:
 - `{{site_footer}}`
 - `{{site_copyright_year}}` (derived at build time)
 - `{{author}}`
-- `{{assistant}}`
 - `{{css_import}}` (stylesheet tag for `site.theme`)
 - `{{font_import}}` (optional stylesheet or inline font declaration for configured `site.font`)
 
@@ -164,7 +138,7 @@ Per post, state tracks:
 - `updatedAt`
 - `contentHash`
 
-Commit `.ssg/state.json`, but do not edit it manually. The post header renders created/updated dates and a short content hash from this state. Authored `date` metadata is optional and only seeds `createdAt` for existing/simple migration cases.
+Commit `.ssg/state.json`, but do not edit it manually. The post header renders created/updated dates and a short content hash from this state. Authored dates are not required; `createdAt` is assigned by the SSG state file on first build.
 
 ## Canvas posts
 
@@ -173,14 +147,12 @@ Directory posts can use a canvas layout with a generated index and annotation ra
 ```json
 {
   "title": "Canvas Layout",
-  "date": "2026-07-03",
   "panes": [
     { "id": "index", "generated": "index", "source": "canvas" },
     { "id": "canvas", "file": "canvas.md" },
     { "id": "annotations", "generated": "annotations", "source": "canvas" }
   ],
-  "layout": { "preset": "canvas" },
-  "sync": { "enabled": false, "source": "canvas" }
+  "layout": { "preset": "canvas" }
 }
 ```
 
@@ -200,11 +172,12 @@ The left index is generated from canvas headings. The right annotation rail scro
 
 ## Markdown niceties
 
-Canvas and regular Markdown posts support:
+Canvas Markdown supports:
 
 - Mermaid fences:
   ````md
   ```mermaid
+  %% caption: Optional diagram caption
   graph TD
     A --> B
   ```
@@ -262,6 +235,5 @@ npm run dev -- --config=./configs/blog.config.json
 ## Notes
 
 - Generated site output (`public/`) is written fresh each run.
-- Frontmatter parsing currently uses `gray-matter`.
 - Markdown conversion currently uses `marked`.
 - The project is intentionally scoped to the features documented above.

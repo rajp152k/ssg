@@ -1,10 +1,4 @@
-export type PostPaneId = 'human' | 'agent' | string;
-
-export interface RawPostFrontmatter {
-  title?: string;
-  date?: string | number;
-  slug?: string;
-}
+export type PostPaneId = string;
 
 export interface RawPostPaneConfig {
   id: PostPaneId;
@@ -15,7 +9,7 @@ export interface RawPostPaneConfig {
 }
 
 export interface RawPostLayoutConfig {
-  preset?: '2x1' | '1x2' | 'canvas';
+  preset?: 'canvas';
   columns?: string;
   rows?: string;
   areas?: string[][];
@@ -27,10 +21,6 @@ export interface RawPostConfig {
   slug?: string;
   panes?: RawPostPaneConfig[];
   layout?: RawPostLayoutConfig;
-  sync?: {
-    enabled?: boolean;
-    source?: PostPaneId;
-  };
 }
 
 export interface PostMetadata {
@@ -67,8 +57,4 @@ export interface Post {
   rawContent: string;
   panes: PostPane[];
   layout: PostLayout;
-  sync: {
-    enabled: boolean;
-    source: PostPaneId;
-  };
 }

@@ -9,8 +9,7 @@
     "indexDescription": "Latest posts from the journey.",
     "footer": "© 2026 That Raj. Licensed under CC BY-SA 4.0.",
     "theme": "themes/light.css",
-    "font": "fonts/terminess.css",
-    "assistant": "his AI"
+    "font": "fonts/TerminessNerdFontMono-Regular.ttf"
   },
   "paths": {
     "postsDir": "content/posts",

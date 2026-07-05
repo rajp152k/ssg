@@ -76,7 +76,7 @@ export function computePostContentHash(post: Post): string {
 
 export function applyPostState(posts: Post[], statePath: string, now = new Date()): SsgState {
   const state = readState(statePath);
-  const nextPosts: Record<string, PostStateEntry> = { ...state.posts };
+  const nextPosts: Record<string, PostStateEntry> = {};
   const nowIso = now.toISOString();
 
   for (const post of posts) {

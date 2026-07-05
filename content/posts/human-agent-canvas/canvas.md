@@ -1,6 +1,6 @@
 # Canvas Layout
 
-The canvas is the primary authored surface. [[note: This layout replaces the old side-by-side human/agent comparison with one central surface and two derived rails.]]
+The canvas is the primary authored surface. [[note: This layout uses one central surface with two derived rails: index and annotations.]]
 
 ## Problem statement
 

@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import matter from 'gray-matter';
 import { marked } from 'marked';
 import type {
   Post,
@@ -8,15 +7,15 @@ import type {
   PostPane,
   PostPaneId,
   RawPostConfig,
-  RawPostFrontmatter,
   RawPostLayoutConfig,
   RawPostPaneConfig,
 } from '../types';
 import { derivePostSlug } from './slug';
 
 const defaultPaneDefinitions: RawPostPaneConfig[] = [
-  { id: 'human', title: '{{author}}', file: 'human.md' },
-  { id: 'agent', title: '{{assistant}}', file: 'agent.md' },
+  { id: 'index', title: 'Index', generated: 'index', source: 'canvas' },
+  { id: 'canvas', title: 'Canvas', file: 'canvas.md' },
+  { id: 'annotations', title: 'Annotations', generated: 'annotations', source: 'canvas' },
 ];
 
 const FALLBACK_TEXT = '<p><em>No content yet.</em></p>';
@@ -123,36 +122,6 @@ function normalizePaneConfig(
   return normalized.length > 0 ? normalized : defaultPaneDefinitions;
 }
 
-function applyAgentSessionSyntax(markdown: string): string {
-  const sessionRegex = /<!--agent-session(?:\s+([^>]*)?)?-->([\s\S]*?)<!--\/agent-session-->/g;
-  if (!sessionRegex.test(markdown)) {
-    return markdown;
-  }
-
-  sessionRegex.lastIndex = 0;
-
-  let output = '';
-  let lastIndex = 0;
-
-  for (const match of markdown.matchAll(sessionRegex)) {
-    const [block, attrText, sessionBody] = match;
-
-    const prelude = markdown.slice(lastIndex, match.index ?? 0);
-    output += prelude;
-
-    const titleMatch = /title\s*=\s*"([^"]*)"/.exec(attrText ?? '');
-    const title = titleMatch?.[1] ?? 'Session';
-    const sessionTitle = escapeHtml(title);
-
-    const body = enhanceMarkdownHtml(marked.parse(sessionBody) as string);
-    output += `<div class="agent-session"><h4>${sessionTitle}</h4>${body}</div>`;
-    lastIndex = (match.index ?? 0) + block.length;
-  }
-
-  output += markdown.slice(lastIndex);
-  return output;
-}
-
 interface RenderedCanvas {
   bodyHtml: string;
   headings: { id: string; depth: number; text: string }[];
@@ -176,10 +145,29 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&#39;/g, "'");
 }
 
+function extractMermaidCaption(diagram: string): { caption: string; diagram: string } {
+  const lines = diagram.trim().split(/\r?\n/);
+  const firstLine = lines[0]?.trim() ?? '';
+  const captionMatch = /^%%\s*caption:\s*(.+)$/i.exec(firstLine);
+
+  if (!captionMatch) {
+    return { caption: '', diagram: diagram.trim() };
+  }
+
+  return {
+    caption: captionMatch[1].trim(),
+    diagram: lines.slice(1).join('\n').trim(),
+  };
+}
+
 function enhanceMarkdownHtml(html: string): string {
   return html
-    .replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (_match, diagram: string) => {
-      return `<pre class="mermaid">${decodeHtmlEntities(diagram).trim()}</pre>`;
+    .replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, (_match, rawDiagram: string) => {
+      const { caption, diagram } = extractMermaidCaption(decodeHtmlEntities(rawDiagram));
+      const mermaid = `<pre class="mermaid">${diagram}</pre>`;
+      return caption
+        ? `<figure class="ssg-diagram">${mermaid}<figcaption>${escapeHtml(caption)}</figcaption></figure>`
+        : mermaid;
     })
     .replace(/<p><img([^>]*)><\/p>/g, (_match, attributes: string) => {
       const title = /title="([^"]*)"/.exec(attributes)?.[1];
@@ -247,9 +235,8 @@ function renderCanvasMarkdown(raw: string): RenderedCanvas {
   return { ...rendered, annotations };
 }
 
-function renderPaneMarkdown(raw: string, paneId: PostPaneId): string {
-  const withSessions = paneId === 'agent' ? applyAgentSessionSyntax(raw) : raw;
-  return renderMarkdownWithHeadingIds(withSessions).bodyHtml;
+function renderPaneMarkdown(raw: string): string {
+  return renderMarkdownWithHeadingIds(raw).bodyHtml;
 }
 
 function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
@@ -268,7 +255,7 @@ function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
   const rawContent = fs.readFileSync(paneFile, 'utf8');
   const rendered = paneConfig.id === 'canvas'
     ? renderCanvasMarkdown(rawContent)
-    : { bodyHtml: renderPaneMarkdown(rawContent, paneConfig.id) };
+    : { bodyHtml: renderPaneMarkdown(rawContent) };
 
   return {
     id: paneConfig.id,
@@ -305,109 +292,11 @@ function createGeneratedPane(paneConfig: RawPostPaneConfig, sourcePane: PostPane
   };
 }
 
-function resolvePaneLayout(paneIds: string[], layout?: RawPostLayoutConfig): PostLayout {
-  const fallbackColumns = `repeat(${Math.min(paneIds.length, 3)}, 1fr)`;
-  const fallbackRows = '1fr';
-
-  if (!layout) {
-    return buildDefaultLayout(paneIds);
-  }
-
-  if (layout.preset) {
-    return buildPresetLayout(layout.preset, paneIds);
-  }
-
-  if (layout.columns && layout.rows && Array.isArray(layout.areas) && layout.areas.length > 0) {
-    const normalizedAreas = layout.areas.map((row) => row.map((cell) => (paneIds.includes(cell) ? cell : '.')));
-    return {
-      columns: layout.columns,
-      rows: layout.rows,
-      areas: normalizedAreas,
-    };
-  }
-
-  if (layout.columns && !layout.rows && !layout.areas) {
-    return {
-      columns: layout.columns,
-      rows: fallbackRows,
-      areas: [paneIds],
-    };
-  }
-
-  if (layout.rows && !layout.columns && !layout.areas) {
-    return {
-      columns: fallbackColumns,
-      rows: layout.rows,
-      areas: [paneIds],
-    };
-  }
-
-  return buildDefaultLayout(paneIds);
-}
-
-function buildDefaultLayout(paneIds: string[]): PostLayout {
-  const normalized = paneIds.map((id) => id.trim()).filter(Boolean);
-  const count = normalized.length;
-
-  if (count <= 1) {
-    return {
-      columns: '1fr',
-      rows: '1fr',
-      areas: [[normalized[0] || 'human']],
-    };
-  }
-
-  if (count === 2) {
-    return {
-      columns: '1fr 1fr',
-      rows: '1fr',
-      areas: [[normalized[0], normalized[1]]],
-    };
-  }
-
-  if (count === 3) {
-    return {
-      columns: '1fr 1fr 1fr',
-      rows: '1fr',
-      areas: [[normalized[0], normalized[1], normalized[2]]],
-    };
-  }
-
+function resolvePaneLayout(_paneIds: string[], _layout?: RawPostLayoutConfig): PostLayout {
   return {
-    columns: '2fr 1fr 1fr',
-    rows: '1fr 1fr',
-    areas: [
-      [normalized[0], normalized[1], normalized[2]],
-      [normalized[3] || normalized[2], normalized[3] || normalized[2], normalized[3] || normalized[2]],
-    ],
-  };
-}
-
-function buildPresetLayout(preset: '2x1' | '1x2' | 'canvas', paneIds: string[]): PostLayout {
-  const normalized = paneIds.map((id) => id.trim()).filter(Boolean);
-  const first = normalized[0] ?? 'human';
-  const second = normalized[1] ?? 'agent';
-
-  if (preset === 'canvas') {
-    return {
-      columns: '11rem minmax(0, 1fr) 15rem',
-      rows: '1fr',
-      areas: [['index', 'canvas', 'annotations']],
-    };
-  }
-
-  if (preset === '2x1') {
-    return {
-      columns: '2fr 1fr',
-      rows: '1fr',
-      areas: [[first, second]],
-    };
-  }
-
-  return {
-    columns: '1fr 1fr',
+    columns: '11rem minmax(0, 1fr) 15rem',
     rows: '1fr',
-    areas: [[first, second]],
+    areas: [['index', 'canvas', 'annotations']],
   };
 }
 
@@ -452,7 +341,7 @@ function toPostObject(
 
   const layout = resolvePaneLayout(panes.map((pane) => String(pane.id)), config?.layout);
 
-  const primaryPane = panes.find((pane) => pane.id === 'human') ?? panes[0];
+  const primaryPane = panes.find((pane) => pane.id === 'canvas') ?? panes[0];
 
   const date = buildUnstatedDate(authoredDate);
 
@@ -473,66 +362,12 @@ function toPostObject(
     rawContent: primaryPane?.rawContent ?? '',
     panes,
     layout,
-    sync: {
-      enabled: config?.sync?.enabled ?? true,
-      source: config?.sync?.source ?? 'human',
-    },
   };
 }
 
 export function loadPost(filePath: string): Post {
   if (!fs.statSync(filePath).isDirectory()) {
-    const source = fs.readFileSync(filePath, 'utf8');
-    const parsed = matter(source);
-    const frontmatter = (parsed.data || {}) as RawPostFrontmatter;
-
-    const title = typeof frontmatter.title === 'string' && frontmatter.title.trim().length > 0
-      ? frontmatter.title.trim()
-      : inferTitleFromPath(filePath);
-    const authoredDate = parseOptionalDate(frontmatter.date, filePath);
-    const metadataSlug = typeof frontmatter.slug === 'string' && frontmatter.slug.trim().length > 0
-      ? frontmatter.slug
-      : title;
-
-    const slug = derivePostSlug(metadataSlug, filePath);
-    const rawContent = parsed.content;
-    const bodyHtml = renderMarkdownWithHeadingIds(rawContent).bodyHtml;
-
-    return {
-      metadata: {
-        title,
-        date: buildUnstatedDate(authoredDate),
-        isoDate: buildUnstatedDate(authoredDate).toISOString(),
-        createdAt: buildUnstatedDate(authoredDate),
-        updatedAt: buildUnstatedDate(authoredDate),
-        contentHash: '',
-        shortHash: '',
-        authoredDate,
-        slug,
-        source: filePath,
-      },
-      bodyHtml,
-      rawContent,
-      panes: [
-        {
-          id: 'human',
-          title: 'Content',
-          file: filePath,
-          rawContent,
-          bodyHtml,
-          missing: false,
-        },
-      ],
-      layout: {
-        columns: '1fr',
-        rows: '1fr',
-        areas: [['human']],
-      },
-      sync: {
-        enabled: true,
-        source: 'human',
-      },
-    };
+    throw new Error(`Posts must be canvas directories with post.json and canvas.md: ${filePath}`);
   }
 
   const config = readPostConfig(filePath);
@@ -562,9 +397,6 @@ export function collectPostSources(postsDir: string): string[] {
       continue;
     }
 
-    if (entry.isFile() && /\.(md|mdx)$/i.test(entry.name)) {
-      paths.push(full);
-    }
   }
 
   return paths;

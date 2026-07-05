@@ -16,263 +16,19 @@ const WORKBENCH_SCRIPT = `
     return;
   }
 
-  const syncEnabled = false;
-  const syncSourcePaneId = 'human';
-  const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
-  const paneById = new Map();
   const paneContentById = new Map();
-  const headingRecordsById = new Map();
-  const syncAnimationsById = new Map();
-  const pendingSyncTimerBySourceId = new Map();
-  const syncSuppressionByPaneId = new Map();
+  const paneElements = Array.from(workbench.querySelectorAll('[data-scroll-pane]'));
 
-  const HEADING_OFFSET = 16;
-  const SYNC_SCROLL_DURATION = 140;
-  const SYNC_DEBOUNCE_MS = 90;
-  const SYNC_SUPPRESSION_MS = 120;
-
-  function clamp(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-  }
-
-  function collectHeadings(content) {
-    const headings = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(
-      (heading) => !heading.closest('.agent-session'),
-    );
-
-    return headings.map((heading) => ({
-      top: heading.offsetTop,
-    }));
-  }
-
-  function refreshHeadingState() {
-    headingRecordsById.clear();
-
+  function refreshPaneState() {
+    paneContentById.clear();
     for (const pane of paneElements) {
       const paneId = pane.getAttribute('data-pane-id');
-      if (!paneId) {
-        continue;
-      }
-
       const content = pane.querySelector('[data-pane-content]');
-      if (!(content instanceof HTMLElement)) {
-        continue;
+      if (paneId && content instanceof HTMLElement) {
+        paneContentById.set(paneId, content);
       }
-
-      paneContentById.set(paneId, content);
-      headingRecordsById.set(paneId, collectHeadings(content));
     }
   }
-
-  function findActiveHeadingIndex(headings, scrollTop) {
-    for (let index = headings.length - 1; index >= 0; index--) {
-      if (scrollTop + HEADING_OFFSET >= headings[index].top) {
-        return index;
-      }
-    }
-
-    return -1;
-  }
-
-  function buildTargetTop(sourceHeadings, targetHeadings, sourceTop, activeHeadingIndex) {
-    const currentSourceHeading = sourceHeadings[activeHeadingIndex];
-    const nextSourceHeading = sourceHeadings[activeHeadingIndex + 1];
-    const currentTargetHeading = targetHeadings[activeHeadingIndex];
-    const nextTargetHeading = targetHeadings[activeHeadingIndex + 1];
-
-    if (!nextSourceHeading || !nextTargetHeading) {
-      return currentTargetHeading.top;
-    }
-
-    const sourceSpan = nextSourceHeading.top - currentSourceHeading.top;
-    if (sourceSpan <= 0) {
-      return currentTargetHeading.top;
-    }
-
-    const sourceProgress = clamp((sourceTop - currentSourceHeading.top) / sourceSpan, 0, 1);
-    return currentTargetHeading.top + sourceProgress * (nextTargetHeading.top - currentTargetHeading.top);
-  }
-
-  function easeInOutQuad(progress) {
-    return progress < 0.5
-      ? 2 * progress * progress
-      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-  }
-
-  function scrollPaneToIndex(paneId, content, targetTop) {
-    const maxScroll = content.scrollHeight - content.clientHeight;
-    const destination = clamp(targetTop, 0, Math.max(0, maxScroll));
-    const existing = syncAnimationsById.get(paneId);
-
-    if (Math.abs(destination - content.scrollTop) < 1) {
-      if (existing?.raf) {
-        cancelAnimationFrame(existing.raf);
-      }
-      syncAnimationsById.delete(paneId);
-      return;
-    }
-
-    if (existing && Math.abs(existing.target - destination) < 1) {
-      return;
-    }
-
-    if (existing?.raf) {
-      cancelAnimationFrame(existing.raf);
-    }
-
-    const state = {
-      target: destination,
-      from: content.scrollTop,
-      startTime: performance.now(),
-      raf: 0,
-      isAnimating: true,
-    };
-
-    const step = (timestamp) => {
-      const elapsed = timestamp - state.startTime;
-      const progress = clamp(elapsed / SYNC_SCROLL_DURATION, 0, 1);
-      const eased = easeInOutQuad(progress);
-      content.scrollTop = state.from + (state.target - state.from) * eased;
-
-      if (progress < 1) {
-        state.raf = window.requestAnimationFrame(step);
-      } else {
-        syncAnimationsById.delete(paneId);
-        setPaneSyncSuppressed(paneId);
-      }
-    };
-
-    state.raf = window.requestAnimationFrame(step);
-    state.isAnimating = true;
-    syncAnimationsById.set(paneId, state);
-  }
-
-  for (const pane of paneElements) {
-    const paneId = pane.getAttribute('data-pane-id');
-    if (paneId) {
-      paneById.set(paneId, pane);
-    }
-  }
-
-  const applySync = (sourceId) => {
-    if (!syncEnabled || typeof sourceId !== 'string' || sourceId !== syncSourcePaneId) {
-      return;
-    }
-
-    const sourceContent = paneContentById.get(sourceId);
-    const sourceHeadings = headingRecordsById.get(sourceId);
-    const sourcePane = paneById.get(sourceId);
-
-    if (!(sourceContent instanceof HTMLElement) || !Array.isArray(sourceHeadings) || !sourcePane) {
-      return;
-    }
-
-    if (sourceHeadings.length === 0) {
-      return;
-    }
-
-    const sourceScrollTop = sourceContent.scrollTop;
-    const activeHeadingIndex = findActiveHeadingIndex(sourceHeadings, sourceScrollTop);
-    if (activeHeadingIndex < 0) {
-      return;
-    }
-
-    for (const pane of paneElements) {
-      if (pane === sourcePane) {
-        continue;
-      }
-
-      const paneId = pane.getAttribute('data-pane-id');
-      if (!paneId) {
-        continue;
-      }
-
-      const targetHeadings = headingRecordsById.get(paneId);
-      if (!Array.isArray(targetHeadings) || !targetHeadings[activeHeadingIndex]) {
-        continue;
-      }
-
-      const content = pane.querySelector('[data-pane-content]');
-      if (!(content instanceof HTMLElement)) {
-        continue;
-      }
-
-      const maxScroll = content.scrollHeight - content.clientHeight;
-      if (maxScroll <= 0) {
-        continue;
-      }
-
-      const targetTop = buildTargetTop(
-        sourceHeadings,
-        targetHeadings,
-        sourceScrollTop + HEADING_OFFSET,
-        activeHeadingIndex,
-      );
-      scrollPaneToIndex(paneId, content, targetTop);
-    }
-  };
-
-  const scheduleSync = (sourceId) => {
-    if (typeof sourceId !== 'string' || !syncEnabled) {
-      return;
-    }
-
-    const prior = pendingSyncTimerBySourceId.get(sourceId);
-    if (typeof prior === 'number') {
-      clearTimeout(prior);
-    }
-
-    const timer = window.setTimeout(() => {
-      pendingSyncTimerBySourceId.delete(sourceId);
-      applySync(sourceId);
-    }, SYNC_DEBOUNCE_MS);
-
-    pendingSyncTimerBySourceId.set(sourceId, timer);
-  };
-
-  const setPaneSyncSuppressed = (paneId) => {
-    syncSuppressionByPaneId.set(paneId, performance.now() + SYNC_SUPPRESSION_MS);
-  };
-
-  const clearPaneSyncSuppression = (paneId) => {
-    syncSuppressionByPaneId.delete(paneId);
-  };
-
-  const isPaneSyncSuppressed = (paneId) => {
-    const until = syncSuppressionByPaneId.get(paneId);
-    if (typeof until !== 'number') {
-      return false;
-    }
-
-    if (until <= performance.now()) {
-      syncSuppressionByPaneId.delete(paneId);
-      return false;
-    }
-
-    return true;
-  };
-
-  refreshHeadingState();
-  window.addEventListener('resize', refreshHeadingState);
-
-  const cancelSyncAnimation = (paneId) => {
-    const state = syncAnimationsById.get(paneId);
-    if (state?.raf) {
-      cancelAnimationFrame(state.raf);
-    }
-
-    syncAnimationsById.delete(paneId);
-    clearPaneSyncSuppression(paneId);
-  };
-
-  const cancelPendingSync = (sourceId) => {
-    const prior = pendingSyncTimerBySourceId.get(sourceId);
-    if (typeof prior === 'number') {
-      clearTimeout(prior);
-    }
-
-    pendingSyncTimerBySourceId.delete(sourceId);
-  };
 
   function syncCanvasAnnotations() {
     const canvas = paneContentById.get('canvas');
@@ -309,63 +65,12 @@ const WORKBENCH_SCRIPT = `
     annotations.scrollTo({ top: Math.max(0, target.offsetTop - 16), behavior: 'smooth' });
   }
 
-  for (const pane of paneElements) {
-    const paneId = pane.getAttribute('data-pane-id');
-    const content = pane.querySelector('[data-pane-content]');
-    if (!(content instanceof HTMLElement) || !paneId) {
-      continue;
-    }
+  refreshPaneState();
+  window.addEventListener('resize', refreshPaneState);
 
-    content.addEventListener(
-      'scroll',
-      () => {
-        if (paneId === 'canvas') {
-          syncCanvasAnnotations();
-        }
-
-        if (!syncEnabled) {
-          return;
-        }
-
-        const state = syncAnimationsById.get(paneId);
-        if (state?.isAnimating) {
-          return;
-        }
-
-        if (isPaneSyncSuppressed(paneId)) {
-          return;
-        }
-
-        if (paneId !== syncSourcePaneId) {
-          return;
-        }
-
-        scheduleSync(paneId);
-      },
-      { passive: true },
-    );
-
-    content.addEventListener(
-      'wheel',
-      () => {
-        if (!syncEnabled) {
-          return;
-        }
-
-        cancelSyncAnimation(paneId);
-        cancelPendingSync(paneId);
-      },
-      { passive: true },
-    );
-
-    content.addEventListener(
-      'mousedown',
-      () => {
-        cancelSyncAnimation(paneId);
-        cancelPendingSync(paneId);
-      },
-      { passive: true },
-    );
+  const canvas = paneContentById.get('canvas');
+  if (canvas instanceof HTMLElement) {
+    canvas.addEventListener('scroll', syncCanvasAnnotations, { passive: true });
   }
 
   syncCanvasAnnotations();
@@ -570,7 +275,6 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
     site_index_description: config.site.indexDescription,
     site_copyright_year: year,
     author: config.site.author,
-    assistant: config.site.assistant ?? 'his AI',
     site_description: config.site.description,
     site_language: config.site.language,
     site_url: config.site.baseUrl,
@@ -678,9 +382,6 @@ function buildWorkbenchMarkup(post: Post, config: SsgConfig): string {
       id="ssg-workbench"
       class="ssg-workbench"
       data-workbench
-      data-scroll-enabled="${post.sync.enabled ? 'true' : 'false'}"
-      data-sync-enabled="${post.sync.enabled ? 'true' : 'false'}"
-      data-sync-source="${post.sync.source}"
     >
       ${content}
     </div>
@@ -730,8 +431,6 @@ export function buildSite(config: SsgConfig): void {
       document_description: `${post.metadata.title} by ${config.site.author}`,
       workbench_html: buildWorkbenchMarkup(post, config),
       workbench_script: WORKBENCH_SCRIPT,
-      sync_enabled: post.sync.enabled ? 'true' : 'false',
-      sync_source: String(post.sync.source),
       css_import: themeImport,
       font_import: fontImport,
     });

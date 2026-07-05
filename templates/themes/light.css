@@ -61,20 +61,16 @@ pre {
   border-radius: 0;
 }
 
-.ssg-image {
+.ssg-image,
+.ssg-diagram {
   border-color: var(--tabloid-border);
   background: var(--tabloid-bg);
 }
 
-.ssg-image figcaption {
+.ssg-image figcaption,
+.ssg-diagram figcaption {
   border-top-color: var(--tabloid-border);
   color: var(--tabloid-muted);
-}
-
-.agent-session {
-  border-color: var(--tabloid-border);
-  border-radius: 0;
-  background: var(--tabloid-bg);
 }
 
 footer {
