@@ -318,7 +318,9 @@ function resolvePaneLayout(_paneIds: string[], _layout?: RawPostLayoutConfig): P
 }
 
 function readPostConfig(postDir: string): RawPostConfig {
-  const configPath = path.join(postDir, 'post.json');
+  const postConfigPath = path.join(postDir, 'post.json');
+  const pageConfigPath = path.join(postDir, 'page.json');
+  const configPath = fs.existsSync(postConfigPath) ? postConfigPath : pageConfigPath;
   const raw = fs.readFileSync(configPath, 'utf8');
   let config: unknown;
   try {
@@ -365,7 +367,8 @@ function toPostObject(
 ): Post {
   const panesConfig = normalizePaneConfig(config?.panes);
 
-  const fileSource = path.join(source, 'post.json');
+  const postConfigSource = path.join(source, 'post.json');
+  const fileSource = fs.existsSync(postConfigSource) ? postConfigSource : path.join(source, 'page.json');
   const configSource = config ? fileSource : source;
 
   const loadedPanes = panesConfig
@@ -437,7 +440,8 @@ export function collectPostSources(postsDir: string): string[] {
 
     if (entry.isDirectory()) {
       const postConfigPath = path.join(full, 'post.json');
-      if (fs.existsSync(postConfigPath)) {
+      const pageConfigPath = path.join(full, 'page.json');
+      if (fs.existsSync(postConfigPath) || fs.existsSync(pageConfigPath)) {
         paths.push(full);
         continue;
       }

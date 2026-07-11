@@ -13,6 +13,7 @@
   },
   "paths": {
     "postsDir": "content/posts",
+    "pagesDir": "content/pages",
     "templatesDir": "templates",
     "outputDir": "public"
   },

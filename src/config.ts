@@ -5,6 +5,7 @@ export interface CliConfigOptions {
   postsDir?: string;
   outputDir?: string;
   templatesDir?: string;
+  pagesDir?: string;
   configPath?: string;
   host?: string;
   port?: string;
@@ -21,6 +22,7 @@ export interface SiteConfig {
   footer: string;
   theme?: string;
   font?: string;
+  navigation?: Array<{ label: string; href: string }>;
 }
 
 export interface DevConfig {
@@ -31,6 +33,7 @@ export interface DevConfig {
 export interface SsgConfig {
   sourceDir: string;
   postsDir: string;
+  pagesDir?: string;
   outputDir: string;
   templatesDir: string;
   site: SiteConfig;
@@ -39,12 +42,13 @@ export interface SsgConfig {
 
 interface UserConfigFile {
   site?: Partial<SiteConfig>;
-  paths?: Partial<{ postsDir: string; outputDir: string; templatesDir: string }>;
+  paths?: Partial<{ postsDir: string; pagesDir: string; outputDir: string; templatesDir: string }>; 
   dev?: Partial<{ host: string; port: number }>;
 }
 
 const defaultPaths = {
   postsDir: path.join('content', 'posts'),
+  pagesDir: path.join('content', 'pages'),
   outputDir: 'public',
   templatesDir: 'templates',
 };
@@ -52,6 +56,7 @@ const defaultPaths = {
 export const defaultConfig: SsgConfig = {
   sourceDir: process.cwd(),
   postsDir: defaultPaths.postsDir,
+  pagesDir: defaultPaths.pagesDir,
   outputDir: defaultPaths.outputDir,
   templatesDir: defaultPaths.templatesDir,
   site: {
@@ -95,10 +100,14 @@ function validateConfig(value: unknown, configPath: string): UserConfigFile {
     for (const key of ['title', 'author', 'description', 'language', 'baseUrl', 'indexTitle', 'indexDescription', 'footer', 'theme', 'font']) {
       assertOptionalString((config.site as Record<string, unknown>)[key], `site.${key}`, configPath);
     }
+    const navigation = (config.site as Record<string, unknown>).navigation;
+    if (navigation !== undefined && (!Array.isArray(navigation) || navigation.some((item) => typeof item !== 'object' || item === null || typeof (item as Record<string, unknown>).label !== 'string' || typeof (item as Record<string, unknown>).href !== 'string'))) {
+      throw new Error(`Invalid config site.navigation in ${configPath}: expected { label, href }[]`);
+    }
   }
   if (config.paths !== undefined) {
     assertObject(config.paths, 'paths', configPath);
-    for (const key of ['postsDir', 'outputDir', 'templatesDir']) {
+    for (const key of ['postsDir', 'pagesDir', 'outputDir', 'templatesDir']) {
       assertOptionalString((config.paths as Record<string, unknown>)[key], `paths.${key}`, configPath);
     }
   }
@@ -141,6 +150,7 @@ export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
   return {
     sourceDir: configBaseDir,
     postsDir: resolvePath(options.postsDir ?? userConfig.paths?.postsDir ?? defaultPaths.postsDir),
+    pagesDir: resolvePath(options.pagesDir ?? userConfig.paths?.pagesDir ?? defaultPaths.pagesDir),
     outputDir: resolvePath(options.outputDir ?? userConfig.paths?.outputDir ?? defaultPaths.outputDir),
     templatesDir: resolvePath(options.templatesDir ?? userConfig.paths?.templatesDir ?? defaultPaths.templatesDir),
     site: { ...defaultConfig.site, ...(userConfig.site ?? {}) },

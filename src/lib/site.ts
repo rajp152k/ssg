@@ -142,6 +142,7 @@ function assertSafeOutputDirectory(config: SsgConfig): void {
   const sourceDir = path.resolve(config.sourceDir);
   const inputs = [
     ['postsDir', path.resolve(config.postsDir)],
+    ['pagesDir', path.resolve(config.pagesDir ?? path.join(config.sourceDir, 'content', 'pages'))],
     ['templatesDir', path.resolve(config.templatesDir)],
   ] as const;
 
@@ -337,6 +338,10 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
     site_url: escapeHtml(config.site.baseUrl),
   };
 
+  const siteNavigation = (config.site.navigation ?? [])
+    .map((item) => `<a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a>`)
+    .join('');
+
   const siteFooter = renderTemplate(config.site.footer, {
     ...baseContext,
     site_copyright_year: year,
@@ -345,6 +350,7 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
   return {
     ...baseContext,
     site_footer: siteFooter,
+    site_navigation: siteNavigation,
     ...overrides,
   };
 }
@@ -456,18 +462,24 @@ function escapeHtml(value: string): string {
 
 export function buildSite(config: SsgConfig): void {
   const postsDir = config.postsDir;
+  const pagesDir = config.pagesDir ?? path.join(config.sourceDir, 'content', 'pages');
   const outputDir = config.outputDir;
   const templatesDir = config.templatesDir;
 
   assertSafeOutputDirectory(config);
   fs.mkdirSync(postsDir, { recursive: true });
+  fs.mkdirSync(pagesDir, { recursive: true });
 
   const postTemplate = readTemplate(templatesDir, 'post.html');
+  const pageTemplatePath = path.join(templatesDir, 'page.html');
+  const pageTemplate = fs.existsSync(pageTemplatePath) ? readTemplate(templatesDir, 'page.html') : postTemplate;
   const indexTemplate = readTemplate(templatesDir, 'index.html');
 
   const postSources = collectPostSources(postsDir);
+  const pageSources = collectPostSources(pagesDir);
   const posts = postSources.map((source) => loadPost(source));
-  assertUniqueSlugs(posts);
+  const pages = pageSources.map((source) => loadPost(source));
+  assertUniqueSlugs([...posts, ...pages]);
 
   const stagingDir = path.join(path.dirname(outputDir), `.${path.basename(outputDir)}.${process.pid}.tmp`);
   fs.rmSync(stagingDir, { recursive: true, force: true });
@@ -478,7 +490,7 @@ export function buildSite(config: SsgConfig): void {
   applyPostState(posts, getStatePath(config.sourceDir));
   const sortedPosts = sortPostsByDateDesc(posts);
 
-  for (const post of sortedPosts) {
+  const renderDocument = (post: Post, template: string) => {
     const pageContext = buildTemplateContext(config, {
       title: escapeHtml(post.metadata.title),
       date: formatDate(post.metadata.createdAt),
@@ -494,10 +506,13 @@ export function buildSite(config: SsgConfig): void {
       font_import: fontImport,
     });
 
-    const pageHtml = renderTemplate(postTemplate, pageContext);
+    const pageHtml = renderTemplate(template, pageContext);
     writePage(stagingDir, post.metadata.slug, pageHtml);
     copyPostAssets(post, stagingDir);
-  }
+  };
+
+  for (const post of sortedPosts) renderDocument(post, postTemplate);
+  for (const page of pages) renderDocument(page, pageTemplate);
 
   const indexHtml = renderPostsIndexTemplate(sortedPosts, indexTemplate, buildConfig, themeImport, fontImport);
   fs.writeFileSync(path.join(stagingDir, 'index.html'), indexHtml, 'utf8');

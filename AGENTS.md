@@ -16,14 +16,16 @@ graph LR
 
 ## Supported authoring contract
 
-A post is a directory:
+Posts and pages are canvas document directories:
 
 ```txt
-content/posts/<slug>/
-  post.json
-  canvas.md
-  optional assets
+content/posts/<slug>/post.json
+content/posts/<slug>/canvas.md
+content/pages/<slug>/page.json
+content/pages/<slug>/canvas.md
 ```
+
+Posts enter the chronological index and state model. Pages render at routes without entering the post index.
 
 - `canvas.md` is required.
 - `post.json` is strict: `title`, `date`, `slug`, `panes`, and `layout` are the supported keys.
@@ -35,7 +37,7 @@ content/posts/<slug>/
 ## Core invariants
 
 - `loadPost()` validates and normalizes authored input into `Post`. Templates consume `Post`; they do not parse source files.
-- A slug maps to exactly one route. Duplicate slugs fail before output or state mutation.
+- Posts and pages share one route namespace. A slug maps to exactly one route. Duplicate slugs fail before output or state mutation.
 - Pane files and copied assets must remain inside their post directory after both lexical and real-path resolution.
 - `outputDir` must not overlap `postsDir` or `templatesDir` and must not equal `sourceDir`.
 - `buildSite()` is the only rendering path. `dev` invokes that path and only adds watch, serving, and reload behavior.

@@ -16,11 +16,21 @@ graph LR
 
 `canvas.md` contains prose. `post.json` declares the canvas model. The builder validates each post, normalizes it into one `Post` model, updates content state, and renders HTML through a staging directory.
 
-## Post format
+## Content formats
+
+Posts appear in the chronological index:
 
 ```txt
 content/posts/my-topic/
   post.json
+  canvas.md
+```
+
+Pages share the canvas renderer without appearing in the post index:
+
+```txt
+content/pages/about/
+  page.json
   canvas.md
 ```
 
@@ -79,6 +89,7 @@ npm test
   },
   "paths": {
     "postsDir": "content/posts",
+    "pagesDir": "content/pages",
     "templatesDir": "templates",
     "outputDir": "public"
   }
