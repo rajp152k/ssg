@@ -5,17 +5,26 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Unit and type checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout SSG
         uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -24,8 +33,43 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Build
-        run: npm run build
-
       - name: Run test suite
-        run: npm run test
+        run: npm test
+
+  dogfood:
+    name: Build the blog with this SSG revision
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout SSG
+        uses: actions/checkout@v4
+        with:
+          path: ssg
+
+      - name: Checkout blog
+        uses: actions/checkout@v4
+        with:
+          repository: rajp152k/rajp152k.github.io
+          ref: master
+          path: blog
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            ssg/package-lock.json
+            blog/package-lock.json
+
+      - name: Install SSG dependencies
+        working-directory: ssg
+        run: npm ci
+
+      - name: Install blog dependencies
+        working-directory: blog
+        run: npm ci
+
+      - name: Build blog with this SSG revision
+        working-directory: blog
+        run: ../ssg/node_modules/.bin/tsx ../ssg/src/cli.ts build
