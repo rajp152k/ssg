@@ -45,7 +45,16 @@ export function devCommand(options: DevCommandOptions = {}): void {
 
     rebuildTimer = setTimeout(() => {
       try {
-        config = resolveLatestConfig();
+        const nextConfig = resolveLatestConfig();
+        const requiresRestart = nextConfig.postsDir !== config.postsDir
+          || nextConfig.templatesDir !== config.templatesDir
+          || nextConfig.outputDir !== config.outputDir
+          || nextConfig.dev.host !== config.dev.host
+          || nextConfig.dev.port !== config.dev.port;
+        if (requiresRestart) {
+          throw new Error('Content paths, output path, host, and port are fixed for a dev session. Restart dev after changing them.');
+        }
+        config = nextConfig;
         buildSite(config);
         console.log(`[${new Date().toLocaleTimeString()}] Rebuilt`);
         notifyReload();
@@ -57,22 +66,36 @@ export function devCommand(options: DevCommandOptions = {}): void {
 
   const startWatch = () => {
     const uniqueWatchPaths = [...new Set(watchPaths.map((p) => path.resolve(p)))];
+    const watchedDirectories = new Set<string>();
+    const watchDirectory = (directory: string) => {
+      if (watchedDirectories.has(directory)) return;
+      watchedDirectories.add(directory);
+      watchers.push(fs.watch(directory, () => {
+        if (process.platform !== 'darwin' && process.platform !== 'win32') watchTree(directory);
+        scheduleRebuild();
+      }));
+    };
+    const watchTree = (directory: string) => {
+      watchDirectory(directory);
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (entry.isDirectory()) watchTree(path.join(directory, entry.name));
+      }
+    };
 
     for (const target of uniqueWatchPaths) {
-      if (!fs.existsSync(target)) {
-        continue;
+      if (!fs.existsSync(target)) continue;
+      if (fs.statSync(target).isDirectory()) {
+        if (process.platform === 'darwin' || process.platform === 'win32') {
+          watchers.push(fs.watch(target, { recursive: true }, scheduleRebuild));
+        } else {
+          watchTree(target);
+        }
+      } else {
+        watchers.push(fs.watch(target, scheduleRebuild));
       }
-
-      const watcher = fs.watch(target, { recursive: true }, () => {
-        scheduleRebuild();
-      });
-
-      watchers.push(watcher);
     }
 
-    if (watchers.length === 0) {
-      console.warn('No watch paths found. Continuing with no-file watch.');
-    }
+    if (watchers.length === 0) console.warn('No watch paths found. Continuing with no-file watch.');
   };
 
   const close = (server: http.Server) => {

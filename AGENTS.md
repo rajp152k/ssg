@@ -1,47 +1,79 @@
 # AGENTS.md
 
-Guidance for agents changing `ssg`.
+Instructions for agents changing `ssg`.
 
-## Purpose
+## Objective
 
-`ssg` is a small TypeScript static-site generator. Keep it inspectable. A feature belongs when it preserves a short path from authored content to generated HTML.
+`ssg` is a small TypeScript compiler for canvas posts. Keep the authored-input-to-HTML path short, explicit, and testable. Add a feature only when its model, ownership, and failure mode are clear.
 
 ```mermaid
 graph LR
-  A[canvas.md + post.json] --> B[loadPost]
+  A[canvas.md + post.json] --> B[validate and load]
   B --> C[Post]
-  C --> D[templates]
-  D --> E[public]
+  C --> D[render templates]
+  D --> E[staged public output]
 ```
+
+## Supported authoring contract
+
+A post is a directory:
+
+```txt
+content/posts/<slug>/
+  post.json
+  canvas.md
+  optional assets
+```
+
+- `canvas.md` is required.
+- `post.json` is strict: `title`, `date`, `slug`, `panes`, and `layout` are the supported keys.
+- When `panes` is present, it declares exactly `index`, `canvas`, and `annotations`.
+- The only layout preset is `canvas`.
+- Post-local non-Markdown/non-JSON files are assets and are copied to the generated post route.
+- Markdown is trusted local author input. Raw HTML is allowed. Do not use this generator for untrusted content without adding sanitization.
 
 ## Core invariants
 
-- Canvas posts are the supported authored input: `content/posts/<slug>/post.json` and `canvas.md`.
-- `loadPost()` normalizes authored input into the `Post` model. Templates consume that model; they do not parse content.
-- `buildSite()` is the only build path. `dev` invokes the same build path, then serves and watches its output.
-- `public/` and `.ssg/` are generated and must not be committed.
-- Templates own presentation. Source modules own parsing, state, routing, and rendering.
-- Keep dependencies small. Prefer platform APIs and small local functions over framework layers.
+- `loadPost()` validates and normalizes authored input into `Post`. Templates consume `Post`; they do not parse source files.
+- A slug maps to exactly one route. Duplicate slugs fail before output or state mutation.
+- Pane files and copied assets must remain inside their post directory after both lexical and real-path resolution.
+- `outputDir` must not overlap `postsDir` or `templatesDir` and must not equal `sourceDir`.
+- `buildSite()` is the only rendering path. `dev` invokes that path and only adds watch, serving, and reload behavior.
+- Builds render into a sibling staging directory before replacing `public/`.
+- `.ssg/state.json` records content hashes and timestamps. State writes are atomic.
+- `public/` and `.ssg/` are generated and must not be committed in this repository.
 
 ## Repository map
 
-- `src/lib/post.ts` — canvas parsing, Markdown rendering, Mermaid, annotations, and layout data.
-- `src/lib/site.ts` — site build, template context, generated markup, Mermaid and MathJax runtime configuration.
-- `src/lib/state.ts` — content hashes and post timestamps.
-- `src/commands/` — CLI commands.
-- `templates/` — default HTML, theme CSS, and optional font CSS/assets.
-- `tests/` — behavior-level tests. Add or update tests with behavior changes.
+| Area | Responsibility |
+|---|---|
+| `src/config.ts` | Config loading, validation, path resolution |
+| `src/lib/post.ts` | Post validation, Markdown, Mermaid, annotations, canvas model |
+| `src/lib/site.ts` | Build orchestration, routes, assets, template context, browser runtime configuration |
+| `src/lib/state.ts` | Hashes, timestamps, atomic state persistence |
+| `src/commands/` | CLI entry points and dev server |
+| `templates/` | Default presentation and optional font assets |
+| `tests/` | Behavioral contracts; use temporary fixtures only |
 
-## Change workflow
+## Change protocol
 
-1. Read the related source module and test first.
-2. State the affected invariant.
-3. Make the smallest coherent change.
-4. Run `npm run build`, `npm test`, and `npx tsc --noEmit`.
-5. Do not add sample posts or generated output to the repository. Use temporary test fixtures.
+1. Read the affected module, its tests, and this contract.
+2. State the invariant being changed or introduced.
+3. Make the smallest coherent implementation.
+4. Add a regression test for each correctness or security boundary.
+5. Run:
 
-## Typography and external runtime assets
+   ```bash
+   npm test
+   npx tsc --noEmit
+   npm run build
+   ```
 
-- `site.font` may reference a template CSS file or font asset. The builder copies it into `public/`.
-- The default `fonts/iosevka.css` uses Fontsource via jsDelivr and defines `--ssg-prose-font` and `--ssg-mono-font`.
-- Mermaid and MathJax are runtime CDN dependencies configured in `src/lib/site.ts`. Keep their configuration centralized there.
+6. Do not add sample posts, generated output, or local state to the repository.
+
+## External assets and runtime
+
+- `site.theme` and `site.font` may refer to template-local assets. The builder copies them into output.
+- The default `fonts/iosevka.css` loads Fontsource through jsDelivr and defines `--ssg-prose-font` and `--ssg-mono-font`.
+- Mermaid and MathJax are pinned CDN dependencies configured centrally in `src/lib/site.ts`.
+- Keep browser behavior separate from parsing and build semantics. The current runtime string in `site.ts` is a known extraction target.

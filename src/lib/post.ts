@@ -239,8 +239,25 @@ function renderPaneMarkdown(raw: string): string {
   return renderMarkdownWithHeadingIds(raw).bodyHtml;
 }
 
-function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
+function resolvePaneFile(postDir: string, paneConfig: RawPostPaneConfig): string {
   const paneFile = path.resolve(postDir, paneConfig.file || `${paneConfig.id}.md`);
+  const relative = path.relative(postDir, paneFile);
+  if (!(relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative)))) {
+    throw new Error(`Pane file must stay within post directory: ${paneConfig.file}`);
+  }
+  if (fs.existsSync(paneFile)) {
+    const realPostDir = fs.realpathSync(postDir);
+    const realPaneFile = fs.realpathSync(paneFile);
+    const realRelative = path.relative(realPostDir, realPaneFile);
+    if (realRelative.startsWith(`..${path.sep}`) || realRelative === '..' || path.isAbsolute(realRelative)) {
+      throw new Error(`Pane file symlink must stay within post directory: ${paneConfig.file}`);
+    }
+  }
+  return paneFile;
+}
+
+function createPane(postDir: string, paneConfig: RawPostPaneConfig): PostPane {
+  const paneFile = resolvePaneFile(postDir, paneConfig);
   if (!fs.existsSync(paneFile)) {
     return {
       id: paneConfig.id,
@@ -303,13 +320,41 @@ function resolvePaneLayout(_paneIds: string[], _layout?: RawPostLayoutConfig): P
 function readPostConfig(postDir: string): RawPostConfig {
   const configPath = path.join(postDir, 'post.json');
   const raw = fs.readFileSync(configPath, 'utf8');
-
+  let config: unknown;
   try {
-    return JSON.parse(raw) as RawPostConfig;
+    config = JSON.parse(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse ${configPath}: ${message}`);
   }
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    throw new Error(`Invalid post config in ${configPath}: expected an object`);
+  }
+  const value = config as Record<string, unknown>;
+  const allowed = new Set(['title', 'date', 'slug', 'panes', 'layout']);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) throw new Error(`Invalid post config in ${configPath}: unknown key ${key}`);
+  }
+  for (const key of ['title', 'slug']) {
+    if (value[key] !== undefined && typeof value[key] !== 'string') throw new Error(`Invalid post config in ${configPath}: ${key} must be a string`);
+  }
+  if (value.date !== undefined && typeof value.date !== 'string' && typeof value.date !== 'number') {
+    throw new Error(`Invalid post config in ${configPath}: date must be a string or number`);
+  }
+  if (value.layout !== undefined) {
+    const layout = value.layout;
+    if (typeof layout !== 'object' || layout === null || Array.isArray(layout) || Object.keys(layout).some((key) => key !== 'preset') || (layout as Record<string, unknown>).preset !== 'canvas') {
+      throw new Error(`Invalid post config in ${configPath}: layout must be { "preset": "canvas" }`);
+    }
+  }
+  if (value.panes !== undefined) {
+    if (!Array.isArray(value.panes) || value.panes.length !== 3) throw new Error(`Invalid post config in ${configPath}: panes must declare index, canvas, and annotations`);
+    const ids = value.panes.map((pane) => typeof pane === 'object' && pane !== null ? (pane as Record<string, unknown>).id : '');
+    if (new Set(ids).size !== 3 || !['index', 'canvas', 'annotations'].every((id) => ids.includes(id))) {
+      throw new Error(`Invalid post config in ${configPath}: panes must declare index, canvas, and annotations`);
+    }
+  }
+  return value as RawPostConfig;
 }
 
 function toPostObject(
@@ -371,6 +416,10 @@ export function loadPost(filePath: string): Post {
   }
 
   const config = readPostConfig(filePath);
+  const canvasPath = path.join(filePath, 'canvas.md');
+  if (!fs.existsSync(canvasPath) || !fs.statSync(canvasPath).isFile()) {
+    throw new Error(`Canvas post is missing canvas.md: ${filePath}`);
+  }
   const configTitle = typeof config.title === 'string' && config.title.trim().length > 0
     ? config.title.trim()
     : inferTitleFromPath(filePath);

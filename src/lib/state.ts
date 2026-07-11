@@ -33,7 +33,9 @@ export function readState(statePath: string): SsgState {
 
 export function writeState(statePath: string, state: SsgState): void {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  const temporaryPath = `${statePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  fs.renameSync(temporaryPath, statePath);
 }
 
 function listAuthoredFiles(source: string): string[] {

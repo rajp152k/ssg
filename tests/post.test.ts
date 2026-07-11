@@ -60,6 +60,27 @@ describe('post parsing', () => {
     }
   });
 
+  it('rejects pane files outside the post directory', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
+    const postDir = createCanvasPost(tmp, 'Unsafe Post', '# Unsafe');
+    createTempFile(path.join(tmp, 'outside.md'), '# Private');
+    createTempFile(path.join(postDir, 'post.json'), JSON.stringify({
+      title: 'Unsafe Post',
+      panes: [
+        { id: 'index', generated: 'index', source: 'canvas' },
+        { id: 'canvas', file: '../outside.md' },
+        { id: 'annotations', generated: 'annotations', source: 'canvas' },
+      ],
+      layout: { preset: 'canvas' },
+    }));
+
+    try {
+      expect(() => loadPost(postDir)).toThrow('Pane file must stay within post directory');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('collects markdown files recursively for tooling helpers', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-'));
     const nested = path.join(tmp, 'nested', 'entry.md');

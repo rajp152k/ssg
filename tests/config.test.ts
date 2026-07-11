@@ -36,7 +36,8 @@ describe('config resolution', () => {
       expect(config.site.author).toBe('Test Author');
       expect(config.site.theme).toBe('themes/tbm.css');
       expect(config.site.font).toBe('fonts/terminess.css');
-      expect(config.postsDir).toBe(path.join(tmp, 'posts'));
+      expect(config.sourceDir).toBe(tmp);
+      expect(config.postsDir).toBe(path.join(tmp, 'posts')); 
       expect(config.templatesDir).toBe(path.join(tmp, 'templates'));
       expect(config.outputDir).toBe(path.join(tmp, 'build'));
       expect(config.dev.host).toBe('0.0.0.0');
@@ -92,6 +93,19 @@ describe('config resolution', () => {
     expect(config.site.title).toBe(defaultConfig.site.title);
     expect(config.postsDir).toContain(path.join(process.cwd(), defaultConfig.postsDir));
     expect(config.templatesDir).toContain(path.join(process.cwd(), defaultConfig.templatesDir));
+  });
+
+  it('rejects invalid config values and CLI ports', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-config-'));
+    const configPath = path.join(tmp, 'ssg.config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ dev: { port: 70000 } }), 'utf8');
+
+    try {
+      expect(() => resolveConfig({ configPath })).toThrow('dev.port');
+      expect(() => resolveConfig({ port: '3000junk' })).toThrow('Invalid --port');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 
   it('throws for malformed JSON', () => {

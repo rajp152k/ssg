@@ -50,6 +50,23 @@ function baseConfig(tmp: string, postsDir: string, templatesDir: string, outputD
 }
 
 describe('site build', () => {
+  it('rejects output directories that overlap authored inputs', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-paths-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '{{workbench_html}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+
+    try {
+      expect(() => buildSite(baseConfig(tmp, postsDir, templatesDir, postsDir))).toThrow('outputDir must not overlap postsDir');
+      expect(() => buildSite(baseConfig(tmp, postsDir, templatesDir, templatesDir))).toThrow('outputDir must not overlap templatesDir');
+      expect(fs.existsSync(templatesDir)).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('builds an empty index when no posts exist yet', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-empty-site-'));
     const postsDir = path.join(tmp, 'content', 'posts');
@@ -90,6 +107,31 @@ describe('site build', () => {
       expect(post).toContain('Newer Post');
       expect(post).toContain('New content');
       expect(post).toContain('data-pane-id="canvas"');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects duplicate post slugs before rendering output', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-slugs-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '{{workbench_html}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+    createCanvasPost(postsDir, 'first', 'First', '# First');
+    createCanvasPost(postsDir, 'second', 'Second', '# Second');
+    for (const directory of ['first', 'second']) {
+      const configPath = path.join(postsDir, directory, 'post.json');
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, unknown>;
+      config.slug = 'same-route';
+      fs.writeFileSync(configPath, JSON.stringify(config), 'utf8');
+    }
+
+    try {
+      expect(() => buildSite(baseConfig(tmp, postsDir, templatesDir, outputDir))).toThrow('Duplicate post slug "same-route"');
+      expect(fs.existsSync(outputDir)).toBe(false);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -140,6 +182,27 @@ describe('site build', () => {
       expect(post).toContain('@font-face');
       expect(post).toContain('src: url("/fonts/Terminess.woff2") format("woff2")');
       expect(fs.readFileSync(path.join(outputDir, 'fonts', 'Terminess.woff2'), 'utf8')).toContain('fakefont');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('copies post assets and escapes post metadata in generated HTML', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-assets-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '<title>{{document_title}}</title>{{workbench_html}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+    createCanvasPost(postsDir, 'safe-post', '<img src=x onerror=alert(1)>', '# Safe');
+    fs.writeFileSync(path.join(postsDir, 'safe-post', 'diagram.svg'), '<svg/>', 'utf8');
+
+    try {
+      buildSite(baseConfig(tmp, postsDir, templatesDir, outputDir));
+      const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
+      expect(index).toContain('&lt;img src=x onerror=alert(1)&gt;');
+      expect(fs.existsSync(path.join(outputDir, 'safe-post', 'diagram.svg'))).toBe(true);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

@@ -14,7 +14,7 @@ graph LR
   D --> E[public]
 ```
 
-`canvas.md` contains prose. `post.json` declares panes and layout. The builder normalizes each post into one `Post` model, updates content state, and renders HTML.
+`canvas.md` contains prose. `post.json` declares the canvas model. The builder validates each post, normalizes it into one `Post` model, updates content state, and renders HTML through a staging directory.
 
 ## Post format
 
@@ -48,7 +48,11 @@ Longer supporting context.
 [[/annotation]]
 ```
 
-Markdown supports Mermaid fences, LaTeX through MathJax, fenced code blocks, and captioned images.
+Markdown supports Mermaid fences, LaTeX through MathJax, fenced code blocks, captioned images, and post-local assets. Any non-Markdown/non-JSON file in a post directory is copied to that post's generated route.
+
+## Trust boundary
+
+Posts are trusted local author input. Markdown may contain raw HTML and is rendered without sanitization. Do not build untrusted Markdown with this generator.
 
 ## Commands
 
@@ -59,7 +63,7 @@ npm run dev
 npm test
 ```
 
-`build` recreates `public/`. `dev` builds, watches content/templates/config, serves the output, and live-reloads the browser.
+`build` renders into staging and replaces `public/` after a successful build. `dev` builds, watches content/templates/config, serves the output, and live-reloads the browser. Restart `dev` after changing content paths, output path, host, or port.
 
 ## Configuration
 

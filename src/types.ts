@@ -10,9 +10,6 @@ export interface RawPostPaneConfig {
 
 export interface RawPostLayoutConfig {
   preset?: 'canvas';
-  columns?: string;
-  rows?: string;
-  areas?: string[][];
 }
 
 export interface RawPostConfig {

@@ -77,7 +77,7 @@ const WORKBENCH_SCRIPT = `
 })();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js"></script>
 <script>
 if (window.mermaid && document.querySelector('.mermaid')) {
   window.mermaid.initialize({
@@ -126,11 +126,46 @@ const hasLatex = document.body.innerText.includes('$$') || document.body.innerTe
 if (hasLatex && !document.getElementById('mathjax-script')) {
   const script = document.createElement('script');
   script.id = 'mathjax-script';
-  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml-nofont.js';
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-mml-chtml-nofont.js';
   document.head.appendChild(script);
 }
 </script>
 `;
+
+function isSameOrDescendant(candidate: string, ancestor: string): boolean {
+  const relative = path.relative(ancestor, candidate);
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function assertSafeOutputDirectory(config: SsgConfig): void {
+  const outputDir = path.resolve(config.outputDir);
+  const sourceDir = path.resolve(config.sourceDir);
+  const inputs = [
+    ['postsDir', path.resolve(config.postsDir)],
+    ['templatesDir', path.resolve(config.templatesDir)],
+  ] as const;
+
+  if (outputDir === sourceDir) {
+    throw new Error(`outputDir must not equal sourceDir: ${outputDir}`);
+  }
+
+  for (const [name, input] of inputs) {
+    if (isSameOrDescendant(outputDir, input) || isSameOrDescendant(input, outputDir)) {
+      throw new Error(`outputDir must not overlap ${name}: ${outputDir}`);
+    }
+  }
+}
+
+function assertUniqueSlugs(posts: Post[]): void {
+  const sourceBySlug = new Map<string, string>();
+  for (const post of posts) {
+    const existingSource = sourceBySlug.get(post.metadata.slug);
+    if (existingSource) {
+      throw new Error(`Duplicate post slug "${post.metadata.slug}": ${existingSource} and ${post.metadata.source}`);
+    }
+    sourceBySlug.set(post.metadata.slug, post.metadata.source);
+  }
+}
 
 function readTemplate(templatesDir: string, name: string): string {
   const templatePath = path.join(templatesDir, name);
@@ -141,6 +176,25 @@ function writePage(outputDir: string, slug: string, html: string): void {
   const pageDir = path.join(outputDir, slug);
   fs.mkdirSync(pageDir, { recursive: true });
   fs.writeFileSync(path.join(pageDir, 'index.html'), html, 'utf8');
+}
+
+function copyPostAssets(post: Post, outputDir: string): void {
+  const sourceDir = post.metadata.source;
+  const targetDir = path.join(outputDir, post.metadata.slug);
+  const copy = (directory: string) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const source = path.join(directory, entry.name);
+      const relative = path.relative(sourceDir, source);
+      const target = path.join(targetDir, relative);
+      if (entry.isDirectory()) {
+        copy(source);
+      } else if (entry.isFile() && !/\.(md|mdx|json)$/i.test(entry.name)) {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.copyFileSync(source, target);
+      }
+    }
+  };
+  copy(sourceDir);
 }
 
 function sortPostsByDateDesc(posts: Post[]): Post[] {
@@ -272,15 +326,15 @@ function buildTemplateContext(config: SsgConfig, overrides: TemplateContext): Te
   const year = new Date().getFullYear().toString();
 
   const baseContext: TemplateContext = {
-    site_title: config.site.title,
-    site_author: config.site.author,
-    site_index_title: config.site.indexTitle,
-    site_index_description: config.site.indexDescription,
+    site_title: escapeHtml(config.site.title),
+    site_author: escapeHtml(config.site.author),
+    site_index_title: escapeHtml(config.site.indexTitle),
+    site_index_description: escapeHtml(config.site.indexDescription),
     site_copyright_year: year,
-    author: config.site.author,
-    site_description: config.site.description,
-    site_language: config.site.language,
-    site_url: config.site.baseUrl,
+    author: escapeHtml(config.site.author),
+    site_description: escapeHtml(config.site.description),
+    site_language: escapeHtml(config.site.language),
+    site_url: escapeHtml(config.site.baseUrl),
   };
 
   const siteFooter = renderTemplate(config.site.footer, {
@@ -304,7 +358,7 @@ function renderPostsIndexTemplate(
 ): string {
   const rows = posts
     .map((post) => {
-      return `<tr><td><a href="./${post.metadata.slug}/">${post.metadata.title}</a></td><td><time datetime="${post.metadata.updatedAt.toISOString()}">${formatDate(post.metadata.updatedAt)}</time></td><td><code>${post.metadata.shortHash}</code></td></tr>`;
+      return `<tr><td><a href="./${escapeHtml(post.metadata.slug)}/">${escapeHtml(post.metadata.title)}</a></td><td><time datetime="${post.metadata.updatedAt.toISOString()}">${formatDate(post.metadata.updatedAt)}</time></td><td><code>${post.metadata.shortHash}</code></td></tr>`;
     })
     .join('\n');
 
@@ -405,41 +459,48 @@ export function buildSite(config: SsgConfig): void {
   const outputDir = config.outputDir;
   const templatesDir = config.templatesDir;
 
+  assertSafeOutputDirectory(config);
   fs.mkdirSync(postsDir, { recursive: true });
 
   const postTemplate = readTemplate(templatesDir, 'post.html');
   const indexTemplate = readTemplate(templatesDir, 'index.html');
 
-  fs.rmSync(outputDir, { recursive: true, force: true });
-  fs.mkdirSync(outputDir, { recursive: true });
-  const themeImport = buildThemeImport(config);
-  const fontImport = buildFontImport(config);
-
   const postSources = collectPostSources(postsDir);
   const posts = postSources.map((source) => loadPost(source));
+  assertUniqueSlugs(posts);
+
+  const stagingDir = path.join(path.dirname(outputDir), `.${path.basename(outputDir)}.${process.pid}.tmp`);
+  fs.rmSync(stagingDir, { recursive: true, force: true });
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const buildConfig = { ...config, outputDir: stagingDir };
+  const themeImport = buildThemeImport(buildConfig);
+  const fontImport = buildFontImport(buildConfig);
   applyPostState(posts, getStatePath(config.sourceDir));
   const sortedPosts = sortPostsByDateDesc(posts);
 
   for (const post of sortedPosts) {
     const pageContext = buildTemplateContext(config, {
-      title: post.metadata.title,
+      title: escapeHtml(post.metadata.title),
       date: formatDate(post.metadata.createdAt),
       created_date: formatDate(post.metadata.createdAt),
       updated_date: formatDate(post.metadata.updatedAt),
       content_hash: post.metadata.shortHash,
       content: post.bodyHtml,
-      document_title: `${post.metadata.title} · ${config.site.title}`,
-      document_description: `${post.metadata.title} by ${config.site.author}`,
-      workbench_html: buildWorkbenchMarkup(post, config),
+      document_title: escapeHtml(`${post.metadata.title} · ${config.site.title}`),
+      document_description: escapeHtml(`${post.metadata.title} by ${config.site.author}`),
+      workbench_html: buildWorkbenchMarkup(post, buildConfig),
       workbench_script: WORKBENCH_SCRIPT,
       css_import: themeImport,
       font_import: fontImport,
     });
 
     const pageHtml = renderTemplate(postTemplate, pageContext);
-    writePage(outputDir, post.metadata.slug, pageHtml);
+    writePage(stagingDir, post.metadata.slug, pageHtml);
+    copyPostAssets(post, stagingDir);
   }
 
-  const indexHtml = renderPostsIndexTemplate(sortedPosts, indexTemplate, config, themeImport, fontImport);
-  fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml, 'utf8');
+  const indexHtml = renderPostsIndexTemplate(sortedPosts, indexTemplate, buildConfig, themeImport, fontImport);
+  fs.writeFileSync(path.join(stagingDir, 'index.html'), indexHtml, 'utf8');
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.renameSync(stagingDir, outputDir);
 }
