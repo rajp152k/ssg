@@ -59,12 +59,13 @@ Posts enter the chronological index and state model. Pages render at routes with
 
 ## Change protocol
 
-1. Never mutate `main` directly. Create a focused local branch, commit there, push it, and merge only through a pull request after required CI checks pass.
-2. Read the affected module, its tests, and this contract.
-3. State the invariant being changed or introduced.
-4. Make the smallest coherent implementation.
-5. Add a regression test for each correctness or security boundary.
-6. Run:
+1. Never mutate `main` directly. Create a focused local branch, commit there, push it, and open a pull request.
+2. Observe every required pull-request check through completion. Merge only after all checks succeed; investigate failures instead of bypassing or prematurely merging around them. After merging, observe the complete `main` validation and release pipelines and report any warnings or failures.
+3. Read the affected module, its tests, and this contract.
+4. State the invariant being changed or introduced.
+5. Make the smallest coherent implementation.
+6. Add a regression test for each correctness or security boundary.
+7. Run:
 
    ```bash
    npm test
@@ -72,9 +73,9 @@ Posts enter the chronological index and state model. Pages render at routes with
    npm run build
    ```
 
-7. Do not add sample posts, generated output, or local state to the repository.
-8. Keep temporary feature state under `anvil/`. It is ignored local workspace state and must never become an input required for a clean build.
-9. Use `[skip ci]` only for changes that cannot affect validation, builds, generated artifacts, or deployment behavior.
+8. Do not add sample posts, generated output, or local state to the repository.
+9. Keep temporary feature state under `anvil/`. It is ignored local workspace state and must never become an input required for a clean build.
+10. Use `[skip ci]` only for changes that cannot affect validation, builds, generated artifacts, or deployment behavior.
 
 ## Mutual development and CI
 
