@@ -59,11 +59,12 @@ Posts enter the chronological index and state model. Pages render at routes with
 
 ## Change protocol
 
-1. Read the affected module, its tests, and this contract.
-2. State the invariant being changed or introduced.
-3. Make the smallest coherent implementation.
-4. Add a regression test for each correctness or security boundary.
-5. Run:
+1. Never mutate `main` directly. Create a focused local branch, commit there, push it, and merge only through a pull request after required CI checks pass.
+2. Read the affected module, its tests, and this contract.
+3. State the invariant being changed or introduced.
+4. Make the smallest coherent implementation.
+5. Add a regression test for each correctness or security boundary.
+6. Run:
 
    ```bash
    npm test
@@ -71,7 +72,19 @@ Posts enter the chronological index and state model. Pages render at routes with
    npm run build
    ```
 
-6. Do not add sample posts, generated output, or local state to the repository.
+7. Do not add sample posts, generated output, or local state to the repository.
+8. Keep temporary feature state under `anvil/`. It is ignored local workspace state and must never become an input required for a clean build.
+9. Use `[skip ci]` only for changes that cannot affect validation, builds, generated artifacts, or deployment behavior.
+
+## Mutual development and CI
+
+- The SSG and blog are independently versioned repositories developed against each other.
+- SSG CI must preserve focused fixtures and unit tests, then dogfood the exact SSG revision under test by building the blog's `master` branch.
+- Blog CI checks both its lockfile-pinned SSG dependency and compatibility with the current SSG `main` branch.
+- A mutable cross-repository branch is a compatibility target, not a reproducible dependency. Pin durable inputs by lockfile or commit.
+- Cross-repository checks do not replace regression tests. A blog failure can reveal integration breakage but may not identify the violated SSG invariant.
+- CI caches are disposable accelerators. Tests and builds must succeed from clean checkouts without previously carried state.
+- Merges to `main` occur only through pull requests and are the boundary for complete release or deployment pipelines.
 
 ## External assets and runtime
 
