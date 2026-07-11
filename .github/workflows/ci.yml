@@ -19,10 +19,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout SSG
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -42,19 +42,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout SSG
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ssg
 
       - name: Checkout blog
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: rajp152k/rajp152k.github.io
           ref: master
           path: blog
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
