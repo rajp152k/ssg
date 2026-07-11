@@ -1,0 +1,26 @@
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka-etoile@latest/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka-etoile@latest/600.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka@latest/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/iosevka@latest/600.css');
+
+:root {
+  --ssg-prose-font: 'Iosevka Etoile', sans-serif;
+  --ssg-mono-font: 'Iosevka', ui-monospace, monospace;
+}
+
+body,
+.ssg-pane__body {
+  font-family: var(--ssg-prose-font);
+}
+
+pre,
+code,
+.posts-table,
+.post-meta,
+.site-title,
+.canvas-index,
+.canvas-annotation__label,
+.ssg-pane__header,
+footer {
+  font-family: var(--ssg-mono-font);
+}

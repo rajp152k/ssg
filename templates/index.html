@@ -18,7 +18,7 @@
       }
 
       body {
-        font-family: 'Terminess', 'Terminess Nerd Font', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+        font-family: var(--ssg-prose-font, ui-sans-serif, system-ui, sans-serif);
         max-width: none;
         min-height: 100%;
         margin: 0;
@@ -71,10 +71,9 @@
       }
 
       .posts-partition {
+        container-type: inline-size;
+        container-name: posts;
         padding: 0;
-        background:
-          linear-gradient(to right, transparent calc(58% - 0.5px), #000 calc(58% - 0.5px), #000 calc(58% + 0.5px), transparent calc(58% + 0.5px)),
-          linear-gradient(to right, transparent calc(78% - 0.5px), #000 calc(78% - 0.5px), #000 calc(78% + 0.5px), transparent calc(78% + 0.5px));
       }
 
       .home-partition h2 {
@@ -94,6 +93,7 @@
 
       .posts-table {
         width: 100%;
+        min-width: 40rem;
         border: 1px solid #000;
         border-collapse: collapse;
         margin: 0;
@@ -122,12 +122,12 @@
 
       .posts-table th:nth-child(1),
       .posts-table td:nth-child(1) {
-        width: 58%;
+        width: 50%;
       }
 
       .posts-table th:nth-child(2),
       .posts-table td:nth-child(2) {
-        width: 20%;
+        width: 28%;
         text-align: center;
         white-space: nowrap;
       }
@@ -139,26 +139,53 @@
         white-space: nowrap;
       }
 
+      @container posts (max-width: 40rem) {
+        .posts-table,
+        .posts-table tbody,
+        .posts-table tr,
+        .posts-table td {
+          display: block;
+          width: 100%;
+        }
+
+        .posts-table {
+          min-width: 0;
+          border: 0;
+        }
+
+        .posts-table thead {
+          display: none;
+        }
+
+        .posts-table tr {
+          border: 1px solid #000;
+          margin-bottom: 0.45rem;
+        }
+
+        .posts-table td {
+          border: 0;
+          padding: 0.2rem 0.35rem;
+          text-align: left !important;
+          white-space: normal !important;
+        }
+
+        .posts-table td::before {
+          display: block;
+          font-size: 0.78em;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .posts-table td:nth-child(1)::before { content: 'Post'; }
+        .posts-table td:nth-child(2)::before { content: 'Updated'; }
+        .posts-table td:nth-child(3)::before { content: 'Hash'; }
+      }
+
       @media (max-width: 760px) {
         .home-header,
         .home-grid {
           grid-template-columns: 1fr;
-        }
-
-        .posts-partition {
-          background: none;
-        }
-
-        .posts-table th:nth-child(2),
-        .posts-table th:nth-child(3),
-        .posts-table td:nth-child(2),
-        .posts-table td:nth-child(3) {
-          display: none;
-        }
-
-        .posts-table th:nth-child(1),
-        .posts-table td:nth-child(1) {
-          width: 100%;
         }
       }
 

@@ -1,10 +1,4 @@
 {
   "version": 1,
-  "posts": {
-    "canvas-layout": {
-      "createdAt": "2026-07-03T00:00:00.000Z",
-      "updatedAt": "2026-07-05T01:31:20.527Z",
-      "contentHash": "4997fd3cd444a28587dcf4d2066ee5bc9db06f955ec67735ff5ad394c92ab6ba"
-    }
-  }
+  "posts": {}
 }

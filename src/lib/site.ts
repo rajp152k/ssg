@@ -102,7 +102,7 @@ if (window.mermaid && document.querySelector('.mermaid')) {
       edgeLabelBackground: '#ffffff',
       clusterBkg: '#ffffff',
       clusterBorder: '#000000',
-      fontFamily: 'Terminess, Terminess Nerd Font, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
+      fontFamily: 'Iosevka, ui-monospace, monospace',
     },
   });
 }
@@ -112,6 +112,9 @@ if (window.mermaid && document.querySelector('.mermaid')) {
 window.MathJax = {
   options: {
     ignoreHtmlClass: 'tex2jax_ignore',
+  },
+  output: {
+    font: 'mathjax-fira',
   },
   tex: {
     inlineMath: [['$', '$'], ['\\(', '\\)']],
@@ -123,7 +126,7 @@ const hasLatex = document.body.innerText.includes('$$') || document.body.innerTe
 if (hasLatex && !document.getElementById('mathjax-script')) {
   const script = document.createElement('script');
   script.id = 'mathjax-script';
-  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+  script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml-nofont.js';
   document.head.appendChild(script);
 }
 </script>
@@ -402,9 +405,7 @@ export function buildSite(config: SsgConfig): void {
   const outputDir = config.outputDir;
   const templatesDir = config.templatesDir;
 
-  if (!fs.existsSync(postsDir)) {
-    throw new Error(`Posts directory does not exist: ${postsDir}`);
-  }
+  fs.mkdirSync(postsDir, { recursive: true });
 
   const postTemplate = readTemplate(templatesDir, 'post.html');
   const indexTemplate = readTemplate(templatesDir, 'index.html');

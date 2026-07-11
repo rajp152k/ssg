@@ -50,6 +50,24 @@ function baseConfig(tmp: string, postsDir: string, templatesDir: string, outputD
 }
 
 describe('site build', () => {
+  it('builds an empty index when no posts exist yet', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-empty-site-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '{{workbench_html}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+
+    try {
+      buildSite(baseConfig(tmp, postsDir, templatesDir, outputDir));
+      expect(fs.existsSync(postsDir)).toBe(true);
+      expect(fs.existsSync(path.join(outputDir, 'index.html'))).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('builds index and post pages from canvas directories', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-'));
     const postsDir = path.join(tmp, 'content', 'posts');

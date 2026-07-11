@@ -70,7 +70,7 @@ export const defaultConfig: SsgConfig = {
     baseUrl: '',
     indexTitle: 'Posts',
     indexDescription: 'Latest posts',
-    footer: "(C) {{site_copyright_year}} 'The Raj'",
+    footer: '© {{site_copyright_year}} {{site_author}}.',
     theme: 'themes/light.css',
   },
   dev: {
