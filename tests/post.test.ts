@@ -133,6 +133,57 @@ describe('post parsing', () => {
     }
   });
 
+  it('renders a referenced JSON dialogue as collapsible, attributed deliberation', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-dialogue-'));
+    const postDir = createCanvasPost(tmp, 'Dialogue Post', '# Dialogue\n\n[[dialogue:review.json]]');
+    createTempFile(path.join(postDir, 'review.json'), JSON.stringify({
+      title: 'Should the roles be separate?',
+      claim: 'Distinct passes make disagreement **visible**.',
+      turns: [
+        { speaker: 'H.A.R.T.', body: 'A synthesis pass creates a coherent model.' },
+        { speaker: 'C.A.R.R.', body: 'A separate name does not create independent reasoning.' },
+      ],
+      disposition: { status: 'narrowed', by: 'Raj', body: 'Describe this as an explicit adversarial pass.' },
+      canvasConsequence: 'The central claim is narrowed.',
+    }));
+
+    try {
+      const post = loadPost(postDir);
+      expect(post.bodyHtml).toContain('<details class="canvas-dialogue">');
+      expect(post.bodyHtml).toContain('<summary>Should the roles be separate?</summary>');
+      expect(post.bodyHtml).toContain('<strong>visible</strong>');
+      expect(post.bodyHtml).toContain('H.A.R.T.');
+      expect(post.bodyHtml).toContain('data-dialogue-status="narrowed"');
+      expect(post.bodyHtml).toContain('Canvas consequence');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects dialogue files outside the post directory', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-dialogue-path-'));
+    const postDir = createCanvasPost(tmp, 'Unsafe Dialogue', '# Dialogue\n\n[[dialogue:../private.json]]');
+    createTempFile(path.join(tmp, 'private.json'), JSON.stringify({ title: 'Private', turns: [{ speaker: 'X', body: 'Secret' }] }));
+
+    try {
+      expect(() => loadPost(postDir)).toThrow('Dialogue file must stay within post directory');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects malformed dialogue records', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-post-dialogue-invalid-'));
+    const postDir = createCanvasPost(tmp, 'Invalid Dialogue', '# Dialogue\n\n[[dialogue:review.json]]');
+    createTempFile(path.join(postDir, 'review.json'), JSON.stringify({ title: 'Review', turns: [] }));
+
+    try {
+      expect(() => loadPost(postDir)).toThrow('turns must be a non-empty array');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it('extracts and normalizes heading signatures from markdown', () => {
     const signatures = extractHeadingSignatures(
       '# Canvas Notes\n\n## Problem statement\n### A heading with *emphasis*\n\n',

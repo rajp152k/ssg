@@ -32,7 +32,9 @@ Posts enter the chronological index and state model. Pages render at routes with
 - When `panes` is present, it declares exactly `index`, `canvas`, and `annotations`.
 - The only layout preset is `canvas`.
 - Post-local non-Markdown/non-JSON files are assets and are copied to the generated post route.
-- Markdown is trusted local author input. Raw HTML is allowed. Do not use this generator for untrusted content without adding sanitization.
+- Canvas Markdown may reference a post-local dialogue with `[[dialogue:file.json]]`. Dialogue JSON is validated, rendered as native collapsible HTML, included in content hashing, and never copied as a public asset.
+- Dialogue paths must remain inside the post directory after lexical and real-path resolution.
+- Markdown in canvases, annotations, and dialogue bodies is trusted local author input. Raw HTML is allowed. Do not use this generator for untrusted content without adding sanitization.
 
 ## Core invariants
 
