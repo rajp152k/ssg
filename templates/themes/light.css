@@ -181,3 +181,38 @@ img {
 .canvas-annotation.is-active {
   border-left-width: 4px;
 }
+
+.canvas-dialogue {
+  border: 1px solid var(--tabloid-border);
+  margin: 0.75rem 0;
+}
+
+.canvas-dialogue > summary {
+  background: var(--tabloid-soft);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.45rem 0.6rem;
+}
+
+.canvas-dialogue__content {
+  padding: 0 0.6rem 0.6rem;
+}
+
+.canvas-dialogue__turn,
+.canvas-dialogue__disposition,
+.canvas-dialogue__consequence {
+  border-top: 1px solid var(--tabloid-border);
+  margin-top: 0.6rem;
+  padding-top: 0.4rem;
+}
+
+.canvas-dialogue__speaker,
+.canvas-dialogue__disposition h4,
+.canvas-dialogue__consequence h4 {
+  margin: 0 0 0.25rem;
+}
+
+.canvas-dialogue__claim {
+  font-weight: 400;
+  margin-top: 0.6rem;
+}

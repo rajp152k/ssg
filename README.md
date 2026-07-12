@@ -58,6 +58,31 @@ Longer supporting context.
 [[/annotation]]
 ```
 
+A canvas can embed a collapsible, attributed dialogue from a JSON file in the same document directory:
+
+```md
+[[dialogue:review.json]]
+```
+
+```json
+{
+  "title": "Reviewing the central claim",
+  "claim": "The claim under review.",
+  "turns": [
+    { "speaker": "H.A.R.T.", "body": "A Markdown formulation." },
+    { "speaker": "C.A.R.R.", "body": "A Markdown challenge." }
+  ],
+  "disposition": {
+    "status": "narrowed",
+    "by": "Raj",
+    "body": "Why the challenge changed the claim."
+  },
+  "canvasConsequence": "The revision made to the converged narrative."
+}
+```
+
+`title` and at least one turn are required. Supported disposition statuses are `accepted`, `narrowed`, `rejected`, `deferred`, `unresolved`, and `revised`. Dialogue references cannot leave the document directory. Dialogue JSON participates in the document content hash but is compiled into HTML rather than copied publicly.
+
 Markdown supports Mermaid fences, LaTeX through MathJax, fenced code blocks, captioned images, and post-local assets. Any non-Markdown/non-JSON file in a post directory is copied to that post's generated route.
 
 ## Trust boundary
