@@ -23,29 +23,33 @@ content/posts/<slug>/post.json
 content/posts/<slug>/canvas.md
 content/pages/<slug>/page.json
 content/pages/<slug>/canvas.md
+content/meditations/<slug>.md
 ```
 
-Posts enter the chronological index and state model. Pages render at routes without entering the post index.
+Posts enter the root curated index. Pages render at routes without entering that index. Meditations are single Markdown files with strict `title` and `date` front matter; they enter the paginated `/meditations/` index.
 
 - `canvas.md` is required.
-- `post.json` is strict: `title`, `date`, `slug`, `panes`, and `layout` are the supported keys.
+- `post.json` is strict: `title`, `createdAt`, `slug`, `panes`, and `layout` are the supported keys.
+- `createdAt` is written once by `ssg new`, preserved by forced regeneration, and used to order the post index by recency. Authors do not maintain it manually.
 - When `panes` is present, it declares exactly `index`, `canvas`, and `annotations`.
 - The only layout preset is `canvas`.
 - Post-local non-Markdown/non-JSON files are assets and are copied to the generated post route.
-- Canvas Markdown may reference a post-local dialogue with `[[dialogue:file.json]]`. Dialogue JSON is validated, rendered as native collapsible HTML, included in content hashing, and never copied as a public asset.
+- Canvas Markdown may reference a post-local dialogue with `[[dialogue:file.json]]`. Dialogue JSON is validated, rendered as native collapsible HTML, and never copied as a public asset.
 - Dialogue paths must remain inside the post directory after lexical and real-path resolution.
-- Markdown in canvases, annotations, and dialogue bodies is trusted local author input. Raw HTML is allowed. Do not use this generator for untrusted content without adding sanitization.
+- Meditation filenames define their slugs. The slug `page` is reserved for pagination.
+- Meditation indexes contain 20 entries per page and sort by date descending.
+- Markdown in canvases, meditations, annotations, and dialogue bodies is trusted local author input. Raw HTML is allowed. Do not use this generator for untrusted content without adding sanitization.
 
 ## Core invariants
 
 - `loadPost()` validates and normalizes authored input into `Post`. Templates consume `Post`; they do not parse source files.
-- Posts and pages share one route namespace. A slug maps to exactly one route. Duplicate slugs fail before output or state mutation.
+- Posts and pages share one route namespace. A slug maps to exactly one route. Duplicate slugs fail before output mutation. The root slug `meditations` is reserved.
 - Pane files and copied assets must remain inside their post directory after both lexical and real-path resolution.
 - `outputDir` must not overlap `postsDir` or `templatesDir` and must not equal `sourceDir`.
 - `buildSite()` is the only rendering path. `dev` invokes that path and only adds watch, serving, and reload behavior.
 - Builds render into a sibling staging directory before replacing `public/`.
-- `.ssg/state.json` records content hashes and timestamps. State writes are atomic.
-- `public/` and `.ssg/` are generated and must not be committed in this repository.
+- Builds are stateless: authored content and configuration are the only durable inputs. Creation time belongs to each post's authored metadata rather than build state.
+- `public/` is generated and must not be committed in this repository.
 
 ## Repository map
 
@@ -53,8 +57,8 @@ Posts enter the chronological index and state model. Pages render at routes with
 |---|---|
 | `src/config.ts` | Config loading, validation, path resolution |
 | `src/lib/post.ts` | Post validation, Markdown, Mermaid, annotations, canvas model |
-| `src/lib/site.ts` | Build orchestration, routes, assets, template context, browser runtime configuration |
-| `src/lib/state.ts` | Hashes, timestamps, atomic state persistence |
+| `src/lib/meditation.ts` | Meditation front matter, Markdown, and discovery |
+| `src/lib/site.ts` | Build orchestration, routes, assets, pagination, template context, browser runtime configuration |
 | `src/commands/` | CLI entry points and dev server |
 | `templates/` | Default presentation and optional font assets |
 | `tests/` | Behavioral contracts; use temporary fixtures only |
@@ -75,7 +79,7 @@ Posts enter the chronological index and state model. Pages render at routes with
    npm run build
    ```
 
-8. Do not add sample posts, generated output, or local state to the repository.
+8. Do not add sample posts or generated output to the repository.
 9. Keep temporary feature state under `anvil/`. It is ignored local workspace state and must never become an input required for a clean build.
 10. Use `[skip ci]` only for changes that cannot affect validation, builds, generated artifacts, or deployment behavior.
 

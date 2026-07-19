@@ -34,9 +34,20 @@ export function newCommand(options: NewPostOptions): void {
     throw new Error(`Cannot create post directory; path exists and is not a directory: ${postDir}`);
   }
 
+  const postJsonPath = path.join(postDir, 'post.json');
+  let createdAt = new Date().toISOString();
+  if (force && fs.existsSync(postJsonPath)) {
+    const existing = JSON.parse(fs.readFileSync(postJsonPath, 'utf8')) as { createdAt?: unknown };
+    if (typeof existing.createdAt !== 'string') {
+      throw new Error(`Cannot overwrite post without preserving createdAt: ${postJsonPath}`);
+    }
+    createdAt = existing.createdAt;
+  }
+
   const postJson = `${JSON.stringify(
     {
       title,
+      createdAt,
       panes: [
         { id: 'index', title: 'Index', generated: 'index', source: 'canvas' },
         { id: 'canvas', title: 'Canvas', file: 'canvas.md' },
@@ -51,7 +62,7 @@ export function newCommand(options: NewPostOptions): void {
   const canvas = `# ${title}\n\nStart writing on the canvas. [[note: Add short annotations inline like this.]]\n\n## Notes\n\nLonger annotations can use a stable reference. [[@first-note]]\n\n[[annotation:first-note]]\nWrite the longer annotation here.\n[[/annotation]]\n`;
 
   const results = [
-    ['post.json', writeFileSafe(path.join(postDir, 'post.json'), postJson, force)],
+    ['post.json', writeFileSafe(postJsonPath, postJson, force)],
     ['canvas.md', writeFileSafe(path.join(postDir, 'canvas.md'), canvas, force)],
   ] as const;
 

@@ -12,22 +12,16 @@
         box-sizing: border-box;
       }
 
-      html,
-      body {
-        height: 100%;
-      }
-
       body {
         font-family: var(--ssg-prose-font, ui-sans-serif, system-ui, sans-serif);
-        max-width: none;
-        min-height: 100%;
+        width: 100%;
+        min-height: 100vh;
         margin: 0;
         padding: 0.85rem 0.75rem;
-        line-height: 1.45;
         font-size: 1.14rem;
+        line-height: 1.45;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
       }
 
       h1 {
@@ -36,169 +30,84 @@
         line-height: 1;
       }
 
-      p {
-        margin: 0.35rem 0;
-      }
-
-      .home-header {
+      body > header {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.9fr);
-        gap: 0.75rem;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem 1rem;
         align-items: start;
       }
 
+      body > header .site-nav {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+      }
+
       .site-description {
+        grid-column: 1 / -1;
         color: #4b5563;
         margin: 0;
-        max-width: 42rem;
-        overflow-wrap: anywhere;
       }
 
-      .home-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.9fr);
-        gap: 0.75rem;
-        margin-top: 0.7rem;
+      .posts {
         flex: 1;
-        min-height: 0;
+        margin-top: 1.5rem;
       }
 
-      .home-partition {
-        border: 1px solid #000;
-        min-height: 0;
-        padding: 0.45rem;
-        overflow: auto;
-      }
-
-      .posts-partition {
-        container-type: inline-size;
-        container-name: posts;
-        padding: 0;
-      }
-
-      .home-partition h2 {
+      .posts h2 {
         border-bottom: 2px solid #000;
         font-size: 0.94rem;
         letter-spacing: 0.04em;
-        margin: 0 0 0.45rem;
+        margin: 0 0 0.75rem;
         padding-bottom: 0.25rem;
         text-transform: uppercase;
       }
 
-      .embedding-placeholder {
-        color: #444;
-        font-size: 1.08rem;
+      .posts-list {
+        list-style: none;
         margin: 0;
-      }
-
-      .posts-table {
-        width: 100%;
-        min-width: 40rem;
-        border: 1px solid #000;
-        border-collapse: collapse;
-        margin: 0;
-        font-size: 1.10rem;
-        table-layout: fixed;
-      }
-
-      .posts-table th,
-      .posts-table td {
-        border-left: 1px solid #000;
-        border-right: 1px solid #000;
-        padding: 0.28rem 0.35rem;
-        text-align: left;
-        vertical-align: baseline;
-      }
-
-      .posts-table th {
-        position: sticky;
-        top: 0;
-        background: #fff;
-        border-bottom: 2px solid #000;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        font-size: 0.94rem;
-      }
-
-      .posts-table th:nth-child(1),
-      .posts-table td:nth-child(1) {
-        width: 50%;
-      }
-
-      .posts-table th:nth-child(2),
-      .posts-table td:nth-child(2) {
-        width: 28%;
-        text-align: center;
-        white-space: nowrap;
-      }
-
-      .posts-table th:nth-child(3),
-      .posts-table td:nth-child(3) {
-        width: 22%;
-        text-align: right;
-        white-space: nowrap;
-      }
-
-      @container posts (max-width: 40rem) {
-        .posts-table,
-        .posts-table tbody,
-        .posts-table tr,
-        .posts-table td {
-          display: block;
-          width: 100%;
-        }
-
-        .posts-table {
-          min-width: 0;
-          border: 0;
-        }
-
-        .posts-table thead {
-          display: none;
-        }
-
-        .posts-table tr {
-          border: 1px solid #000;
-          margin-bottom: 0.45rem;
-        }
-
-        .posts-table td {
-          border: 0;
-          padding: 0.2rem 0.35rem;
-          text-align: left !important;
-          white-space: normal !important;
-        }
-
-        .posts-table td::before {
-          display: block;
-          font-size: 0.78em;
-          font-weight: 600;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-        }
-
-        .posts-table td:nth-child(1)::before { content: 'Post'; }
-        .posts-table td:nth-child(2)::before { content: 'Updated'; }
-        .posts-table td:nth-child(3)::before { content: 'Hash'; }
-      }
-
-      @media (max-width: 760px) {
-        .home-header,
-        .home-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .posts-table code {
-        border: 0;
-        background: transparent;
         padding: 0;
-        font-family: inherit;
-        font-size: 1.06rem;
+      }
+
+      .posts-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid #d1d5db;
+        padding: 0.45rem 0;
+      }
+
+      .posts-list a {
+        color: inherit;
+      }
+
+      .posts-list time {
+        color: #6b7280;
+        flex: none;
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 0.4rem;
+        margin-top: 1.5rem;
+      }
+
+      .pagination a,
+      .pagination span {
+        border: 1px solid;
+        min-width: 2rem;
+        padding: 0.2rem 0.45rem;
+        text-align: center;
+        text-decoration: none;
+      }
+
+      .pagination span {
+        font-weight: 600;
       }
 
       footer {
-        margin-top: 1.4rem;
+        margin-top: 2rem;
         padding-top: 0.55rem;
         border-top: 1px solid #e5e7eb;
         color: #6b7280;
@@ -210,19 +119,15 @@
     {{font_import}}
   </head>
   <body>
-    <header class="home-header">
+    <header>
       <h1>{{site_title}}</h1>
-      <div><p class="site-description">{{site_description}}</p><nav class="site-nav">{{site_navigation}}</nav></div>
+      <nav class="site-nav">{{site_navigation}}</nav>
+      <p class="site-description">{{site_description}}</p>
     </header>
 
-    <main class="home-grid">
-      <section class="home-partition" aria-labelledby="embeddings-heading">
-        <h2 id="embeddings-heading">embeddings</h2>
-        <p class="embedding-placeholder">Semantic projection pending.</p>
-      </section>
-      <section class="home-partition posts-partition" aria-label="posts">
-        {{content}}
-      </section>
+    <main class="posts" aria-label="posts">
+      <h2>{{page_title}}</h2>
+      {{content}}
     </main>
 
     <footer>

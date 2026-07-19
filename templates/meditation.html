@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="{{site_language}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{document_title}}</title>
+    <meta name="description" content="{{document_description}}" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        font-family: var(--ssg-prose-font, ui-sans-serif, system-ui, sans-serif);
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0.35rem 0.4rem;
+        font-size: 1.14rem;
+        line-height: 1.6;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        flex: 0 0 auto;
+        margin-bottom: 1.25rem;
+      }
+
+      .post-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .post-heading h1 {
+        min-width: 0;
+        margin: 0;
+        font-size: 1.62rem;
+        line-height: 1.15;
+      }
+
+      .header a {
+        color: inherit;
+        text-decoration: none;
+        font-size: 0.98rem;
+        white-space: nowrap;
+      }
+
+      .post-meta {
+        margin: 0.04rem 0 0;
+        font-size: 0.98rem;
+      }
+
+      article {
+        flex: 1;
+        width: 100%;
+      }
+
+      article > :first-child {
+        margin-top: 0;
+      }
+
+      article > :last-child {
+        margin-bottom: 0;
+      }
+
+      footer {
+        width: 100%;
+        margin-top: 2rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid;
+        font-size: 0.98rem;
+      }
+    </style>
+    {{css_import}}
+    {{font_import}}
+  </head>
+  <body>
+    <header class="header">
+      <div class="post-heading">
+        <h1>{{title}}</h1>
+        <nav class="site-nav"><a class="site-title" href="../../">{{site_title}}</a>{{site_navigation}}</nav>
+      </div>
+      <p class="post-meta"><time datetime="{{date_iso}}">{{date}}</time></p>
+    </header>
+
+    <article>
+      {{content}}
+    </article>
+
+    <footer>{{site_footer}}</footer>
+  </body>
+</html>

@@ -81,28 +81,11 @@
         font-size: 1.62rem;
       }
 
-      .meta {
+      .post-meta {
         color: #666;
         margin: 0.04rem 0 0;
         font-size: 0.98rem;
       }
-
-      .post-meta {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        align-items: baseline;
-        gap: 0.75rem;
-        width: 100%;
-      }
-
-      .post-meta span {
-        min-width: 0;
-        white-space: nowrap;
-      }
-
-      .post-meta span:nth-child(1) { text-align: left; }
-      .post-meta span:nth-child(2) { text-align: center; }
-      .post-meta span:nth-child(3) { text-align: right; }
 
       main {
         display: flex;
@@ -320,18 +303,6 @@
           align-items: flex-start;
         }
 
-        .post-meta {
-          grid-template-columns: 1fr;
-          gap: 0.1rem;
-        }
-
-        .post-meta span,
-        .post-meta span:nth-child(1),
-        .post-meta span:nth-child(2),
-        .post-meta span:nth-child(3) {
-          text-align: left;
-        }
-
         article {
           overflow: visible;
         }
@@ -374,7 +345,7 @@
           <h1>{{title}}</h1>
           <nav class="site-nav"><a class="site-title" href="../">{{site_title}}</a>{{site_navigation}}</nav>
         </div>
-        <p class="meta post-meta"><span>created {{created_date}}</span><span>updated {{updated_date}}</span><span>hash {{content_hash}}</span></p>
+        <p class="post-meta">created {{created_date}}</p>
       </header>
 
       <article>

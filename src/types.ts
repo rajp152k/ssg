@@ -14,7 +14,7 @@ export interface RawPostLayoutConfig {
 
 export interface RawPostConfig {
   title?: string;
-  date?: string | number;
+  createdAt?: string;
   slug?: string;
   panes?: RawPostPaneConfig[];
   layout?: RawPostLayoutConfig;
@@ -22,13 +22,7 @@ export interface RawPostConfig {
 
 export interface PostMetadata {
   title: string;
-  date: Date;
-  isoDate: string;
-  createdAt: Date;
-  updatedAt: Date;
-  contentHash: string;
-  shortHash: string;
-  authoredDate?: Date;
+  createdAt?: Date;
   slug: string;
   source: string;
 }
@@ -54,4 +48,13 @@ export interface Post {
   rawContent: string;
   panes: PostPane[];
   layout: PostLayout;
+}
+
+export interface Meditation {
+  title: string;
+  date: Date;
+  slug: string;
+  source: string;
+  bodyHtml: string;
+  rawContent: string;
 }

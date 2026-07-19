@@ -6,6 +6,7 @@ export interface CliConfigOptions {
   outputDir?: string;
   templatesDir?: string;
   pagesDir?: string;
+  meditationsDir?: string;
   configPath?: string;
   host?: string;
   port?: string;
@@ -34,6 +35,7 @@ export interface SsgConfig {
   sourceDir: string;
   postsDir: string;
   pagesDir?: string;
+  meditationsDir: string;
   outputDir: string;
   templatesDir: string;
   site: SiteConfig;
@@ -42,13 +44,14 @@ export interface SsgConfig {
 
 interface UserConfigFile {
   site?: Partial<SiteConfig>;
-  paths?: Partial<{ postsDir: string; pagesDir: string; outputDir: string; templatesDir: string }>; 
+  paths?: Partial<{ postsDir: string; pagesDir: string; meditationsDir: string; outputDir: string; templatesDir: string }>;
   dev?: Partial<{ host: string; port: number }>;
 }
 
 const defaultPaths = {
   postsDir: path.join('content', 'posts'),
   pagesDir: path.join('content', 'pages'),
+  meditationsDir: path.join('content', 'meditations'),
   outputDir: 'public',
   templatesDir: 'templates',
 };
@@ -57,6 +60,7 @@ export const defaultConfig: SsgConfig = {
   sourceDir: process.cwd(),
   postsDir: defaultPaths.postsDir,
   pagesDir: defaultPaths.pagesDir,
+  meditationsDir: defaultPaths.meditationsDir,
   outputDir: defaultPaths.outputDir,
   templatesDir: defaultPaths.templatesDir,
   site: {
@@ -68,7 +72,7 @@ export const defaultConfig: SsgConfig = {
     indexTitle: 'Posts',
     indexDescription: 'Latest posts',
     footer: '© {{site_copyright_year}} {{site_author}}.',
-    theme: 'themes/light.css',
+    theme: 'themes/modern-dark.css',
   },
   dev: { host: '127.0.0.1', port: 3000 },
 };
@@ -107,7 +111,7 @@ function validateConfig(value: unknown, configPath: string): UserConfigFile {
   }
   if (config.paths !== undefined) {
     assertObject(config.paths, 'paths', configPath);
-    for (const key of ['postsDir', 'pagesDir', 'outputDir', 'templatesDir']) {
+    for (const key of ['postsDir', 'pagesDir', 'meditationsDir', 'outputDir', 'templatesDir']) {
       assertOptionalString((config.paths as Record<string, unknown>)[key], `paths.${key}`, configPath);
     }
   }
@@ -151,6 +155,7 @@ export function resolveConfig(options: CliConfigOptions = {}): SsgConfig {
     sourceDir: configBaseDir,
     postsDir: resolvePath(options.postsDir ?? userConfig.paths?.postsDir ?? defaultPaths.postsDir),
     pagesDir: resolvePath(options.pagesDir ?? userConfig.paths?.pagesDir ?? defaultPaths.pagesDir),
+    meditationsDir: resolvePath(options.meditationsDir ?? userConfig.paths?.meditationsDir ?? defaultPaths.meditationsDir),
     outputDir: resolvePath(options.outputDir ?? userConfig.paths?.outputDir ?? defaultPaths.outputDir),
     templatesDir: resolvePath(options.templatesDir ?? userConfig.paths?.templatesDir ?? defaultPaths.templatesDir),
     site: { ...defaultConfig.site, ...(userConfig.site ?? {}) },

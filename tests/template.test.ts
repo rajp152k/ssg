@@ -21,8 +21,6 @@ describe('template utilities', () => {
   });
 
   it('formats dates to yyyy-mm-dd', () => {
-    const date = new Date(Date.UTC(2026, 6, 2));
-
-    expect(formatDate(date)).toBe('2026-07-02');
+    expect(formatDate(new Date('2026-07-02T10:00:00.000Z'))).toBe('2026-07-02');
   });
 });

@@ -1,18 +1,21 @@
 import { buildCommand } from './commands/build';
 import { devCommand } from './commands/dev';
 import { newCommand } from './commands/new';
+import { newMeditationCommand } from './commands/new-meditation';
 
 function printUsage(): void {
   console.log(`Usage:
-  ssg build [--config=ssg.config.json --postsDir=... --outDir=... --templatesDir=...]
-  ssg dev [--config=ssg.config.json --postsDir=... --outDir=... --templatesDir=... --host=127.0.0.1 --port=3000]
+  ssg build [--config=ssg.config.json --postsDir=... --meditationsDir=... --outDir=... --templatesDir=...]
+  ssg dev [--config=ssg.config.json --postsDir=... --meditationsDir=... --outDir=... --templatesDir=... --host=127.0.0.1 --port=3000]
   ssg new "Post title" [--force]
+  ssg new-meditation "Meditation title"
 
 Commands:
-  build       Build the site.
-  dev         Build and run local server with watch + live reload.
-  new         Create a canvas-style directory post.
-  help        Show this help.
+  build              Build the site.
+  dev                Build and run local server with watch + live reload.
+  new                Create a canvas-style directory post.
+  new-meditation     Create a text meditation.
+  help               Show this help.
 `);
 }
 
@@ -32,6 +35,7 @@ function main(): void {
   const command = args[0];
 
   const postsDir = parseArg('postsDir', args);
+  const meditationsDir = parseArg('meditationsDir', args);
   const outDir = parseArg('outDir', args);
   const templatesDir = parseArg('templatesDir', args);
   const configPath = parseArg('config', args);
@@ -42,12 +46,7 @@ function main(): void {
   }
 
   if (command === 'build') {
-    buildCommand({
-      postsDir,
-      outputDir: outDir,
-      templatesDir,
-      configPath,
-    });
+    buildCommand({ postsDir, meditationsDir, outputDir: outDir, templatesDir, configPath });
     return;
   }
 
@@ -64,12 +63,19 @@ function main(): void {
     return;
   }
 
+  if (command === 'new-meditation') {
+    const title = args.filter((arg) => !arg.startsWith('--')).slice(1).join(' ');
+    newMeditationCommand({ title, meditationsDir, configPath });
+    return;
+  }
+
   if (command === 'dev') {
     const port = parseArg('port', args);
     const host = parseArg('host', args);
 
     devCommand({
       postsDir,
+      meditationsDir,
       outputDir: outDir,
       templatesDir,
       configPath,

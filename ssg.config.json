@@ -8,12 +8,13 @@
     "indexTitle": "Posts",
     "indexDescription": "",
     "footer": "© {{site_copyright_year}} {{site_author}}.",
-    "theme": "themes/light.css",
+    "theme": "themes/modern-dark.css",
     "font": "fonts/iosevka.css"
   },
   "paths": {
     "postsDir": "content/posts",
     "pagesDir": "content/pages",
+    "meditationsDir": "content/meditations",
     "templatesDir": "templates",
     "outputDir": "public"
   },

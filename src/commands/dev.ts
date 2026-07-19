@@ -25,6 +25,7 @@ export function devCommand(options: DevCommandOptions = {}): void {
     : path.resolve(process.cwd(), 'ssg.config.json');
   const watchPaths = [
     config.postsDir,
+    config.meditationsDir,
     config.templatesDir,
     resolvedConfigPath,
   ];
@@ -47,6 +48,7 @@ export function devCommand(options: DevCommandOptions = {}): void {
       try {
         const nextConfig = resolveLatestConfig();
         const requiresRestart = nextConfig.postsDir !== config.postsDir
+          || nextConfig.meditationsDir !== config.meditationsDir
           || nextConfig.templatesDir !== config.templatesDir
           || nextConfig.outputDir !== config.outputDir
           || nextConfig.dev.host !== config.dev.host

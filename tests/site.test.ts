@@ -5,7 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { buildSite } from '../src/lib/site';
 import type { SsgConfig } from '../src/config';
 
-function createCanvasPost(postsDir: string, slug: string, title: string, body: string): void {
+function createCanvasPost(
+  postsDir: string,
+  slug: string,
+  title: string,
+  body: string,
+  createdAt = '2026-01-01T00:00:00.000Z',
+): void {
   const postDir = path.join(postsDir, slug);
   fs.mkdirSync(postDir, { recursive: true });
   fs.writeFileSync(
@@ -13,6 +19,7 @@ function createCanvasPost(postsDir: string, slug: string, title: string, body: s
     JSON.stringify(
       {
         title,
+        createdAt,
         slug,
         panes: [
           { id: 'index', title: 'Index', generated: 'index', source: 'canvas' },
@@ -33,6 +40,7 @@ function baseConfig(tmp: string, postsDir: string, templatesDir: string, outputD
   return {
     sourceDir: tmp,
     postsDir,
+    meditationsDir: path.join(tmp, 'content', 'meditations'),
     templatesDir,
     outputDir,
     site: {
@@ -94,8 +102,8 @@ describe('site build', () => {
     fs.mkdirSync(templatesDir, { recursive: true });
     fs.writeFileSync(path.join(templatesDir, 'post.html'), '<title>{{document_title}}</title>{{workbench_html}}{{workbench_script}}', 'utf8');
     fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{site_description}}{{content}}', 'utf8');
-    createCanvasPost(postsDir, 'older-post', 'Older Post', '# Older Post\n\nOld content');
-    createCanvasPost(postsDir, 'newer-post', 'Newer Post', '# Newer Post\n\nNew content');
+    createCanvasPost(postsDir, 'older-post', 'Older Post', '# Older Post\n\nOld content', '2026-01-01T00:00:00.000Z');
+    createCanvasPost(postsDir, 'newer-post', 'Newer Post', '# Newer Post\n\nNew content', '2026-02-01T00:00:00.000Z');
 
     try {
       buildSite(baseConfig(tmp, postsDir, templatesDir, outputDir));
@@ -103,6 +111,10 @@ describe('site build', () => {
       expect(index).toContain('Testing build output');
       expect(index).toContain('newer-post');
       expect(index).toContain('older-post');
+      expect(index.indexOf('newer-post')).toBeLessThan(index.indexOf('older-post'));
+      expect(index).toContain('<time datetime="2026-02-01T00:00:00.000Z">2026-02-01</time>');
+      expect(index).not.toContain('<code');
+      expect(fs.existsSync(path.join(tmp, '.ssg'))).toBe(false);
       const post = fs.readFileSync(path.join(outputDir, 'newer-post', 'index.html'), 'utf8');
       expect(post).toContain('Newer Post');
       expect(post).toContain('New content');
@@ -203,6 +215,43 @@ describe('site build', () => {
       const index = fs.readFileSync(path.join(outputDir, 'index.html'), 'utf8');
       expect(index).toContain('&lt;img src=x onerror=alert(1)&gt;');
       expect(fs.existsSync(path.join(outputDir, 'safe-post', 'diagram.svg'))).toBe(true);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it('renders paginated meditations newest first', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ssg-site-meditations-'));
+    const postsDir = path.join(tmp, 'content', 'posts');
+    const meditationsDir = path.join(tmp, 'content', 'meditations');
+    const templatesDir = path.join(tmp, 'templates');
+    const outputDir = path.join(tmp, 'public');
+    fs.mkdirSync(postsDir, { recursive: true });
+    fs.mkdirSync(meditationsDir, { recursive: true });
+    fs.mkdirSync(templatesDir, { recursive: true });
+    fs.writeFileSync(path.join(templatesDir, 'post.html'), '{{workbench_html}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'index.html'), '{{content}}', 'utf8');
+    fs.writeFileSync(path.join(templatesDir, 'meditation.html'), '<h1>{{title}}</h1><time>{{date}}</time>{{content}}', 'utf8');
+    for (let day = 1; day <= 21; day += 1) {
+      const paddedDay = String(day).padStart(2, '0');
+      fs.writeFileSync(
+        path.join(meditationsDir, `thought-${paddedDay}.md`),
+        `---\ntitle: Thought ${paddedDay}\ndate: 2026-07-${paddedDay}\n---\n\nBody ${paddedDay}.\n`,
+        'utf8',
+      );
+    }
+
+    try {
+      const config = baseConfig(tmp, postsDir, templatesDir, outputDir);
+      config.meditationsDir = meditationsDir;
+      buildSite(config);
+      const firstPage = fs.readFileSync(path.join(outputDir, 'meditations', 'index.html'), 'utf8');
+      const secondPage = fs.readFileSync(path.join(outputDir, 'meditations', 'page', '2', 'index.html'), 'utf8');
+      expect(firstPage).toContain('Thought 21');
+      expect(firstPage).not.toContain('Thought 01');
+      expect(firstPage.indexOf('Thought 21')).toBeLessThan(firstPage.indexOf('Thought 20'));
+      expect(secondPage).toContain('Thought 01');
+      expect(fs.readFileSync(path.join(outputDir, 'meditations', 'thought-21', 'index.html'), 'utf8')).toContain('Body 21.');
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
