@@ -14,11 +14,11 @@ graph LR
   D --> E[public]
 ```
 
-`canvas.md` contains prose. `post.json` declares the canvas model. The builder validates each post, normalizes it into one `Post` model, updates content state, and renders HTML through a staging directory.
+`canvas.md` contains prose. `post.json` declares the canvas model. The builder validates each post, normalizes it into one `Post` model, and renders HTML through a staging directory.
 
 ## Content formats
 
-Posts appear in the chronological index:
+Posts appear in the site index, newest first. `ssg new` writes each post's immutable `createdAt` timestamp into `post.json`:
 
 ```txt
 content/posts/my-topic/
@@ -34,9 +34,23 @@ content/pages/about/
   canvas.md
 ```
 
+Meditations form a separate, paginated text channel under `/meditations/`:
+
+```md
+---
+title: A quiet morning
+date: 2026-07-19
+---
+
+The meditation begins here.
+```
+
+Create one with `ssg new-meditation "A quiet morning"`. Meditation front matter is intentionally limited to `title` and `date`; entries are ordered newest-first and paginated after 20 entries.
+
 ```json
 {
   "title": "My Topic",
+  "createdAt": "2026-07-15T07:09:07.000Z",
   "panes": [
     { "id": "index", "title": "Index", "generated": "index", "source": "canvas" },
     { "id": "canvas", "title": "Canvas", "file": "canvas.md" },
@@ -81,7 +95,7 @@ A canvas can embed a collapsible, attributed dialogue from a JSON file in the sa
 }
 ```
 
-`title` and at least one turn are required. Supported disposition statuses are `accepted`, `narrowed`, `rejected`, `deferred`, `unresolved`, and `revised`. Dialogue references cannot leave the document directory. Dialogue JSON participates in the document content hash but is compiled into HTML rather than copied publicly.
+`title` and at least one turn are required. Supported disposition statuses are `accepted`, `narrowed`, `rejected`, `deferred`, `unresolved`, and `revised`. Dialogue references cannot leave the document directory. Dialogue JSON is compiled into HTML rather than copied publicly.
 
 Markdown supports Mermaid fences, LaTeX through MathJax, fenced code blocks, captioned images, and post-local assets. Any non-Markdown/non-JSON file in a post directory is copied to that post's generated route.
 
@@ -95,6 +109,7 @@ Posts are trusted local author input. Markdown may contain raw HTML and is rende
 npm install
 npm run build
 npm run dev
+npx tsx src/cli.ts new-meditation "Meditation title"
 npm test
 ```
 
@@ -109,12 +124,13 @@ npm test
   "site": {
     "title": "My Site",
     "author": "Author",
-    "theme": "themes/light.css",
+    "theme": "themes/modern-dark.css",
     "font": "fonts/iosevka.css"
   },
   "paths": {
     "postsDir": "content/posts",
     "pagesDir": "content/pages",
+    "meditationsDir": "content/meditations",
     "templatesDir": "templates",
     "outputDir": "public"
   }

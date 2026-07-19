@@ -5,7 +5,6 @@ import type {
   Post,
   PostLayout,
   PostPane,
-  PostPaneId,
   RawPostConfig,
   RawPostLayoutConfig,
   RawPostPaneConfig,
@@ -61,23 +60,6 @@ export function extractHeadingSignatures(markdown: string): string[] {
     .filter((heading) => heading.length > 0);
 
   return headings;
-}
-
-function parseOptionalDate(value: string | number | undefined, sourcePath: string): Date | undefined {
-  if (typeof value === 'undefined') {
-    return undefined;
-  }
-
-  const date = typeof value === 'number' ? new Date(value) : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Invalid date value in ${sourcePath}: ${String(value)}`);
-  }
-
-  return date;
-}
-
-function buildUnstatedDate(authoredDate?: Date): Date {
-  return authoredDate ?? new Date(0);
 }
 
 function inferTitleFromPath(filePath: string): string {
@@ -453,16 +435,22 @@ function readPostConfig(postDir: string): RawPostConfig {
     throw new Error(`Invalid post config in ${configPath}: expected an object`);
   }
   const value = config as Record<string, unknown>;
-  const allowed = new Set(['title', 'date', 'slug', 'panes', 'layout']);
+  const allowed = new Set(['title', 'createdAt', 'slug', 'panes', 'layout']);
   for (const key of Object.keys(value)) {
     if (!allowed.has(key)) throw new Error(`Invalid post config in ${configPath}: unknown key ${key}`);
   }
-  for (const key of ['title', 'slug']) {
+  for (const key of ['title', 'createdAt', 'slug']) {
     if (value[key] !== undefined && typeof value[key] !== 'string') throw new Error(`Invalid post config in ${configPath}: ${key} must be a string`);
   }
-  if (value.date !== undefined && typeof value.date !== 'string' && typeof value.date !== 'number') {
-    throw new Error(`Invalid post config in ${configPath}: date must be a string or number`);
+  if (fs.existsSync(postConfigPath)) {
+    if (typeof value.createdAt !== 'string') {
+      throw new Error(`Invalid post config in ${configPath}: createdAt is required`);
+    }
+    if (Number.isNaN(new Date(value.createdAt).getTime())) {
+      throw new Error(`Invalid post config in ${configPath}: createdAt must be an ISO date`);
+    }
   }
+
   if (value.layout !== undefined) {
     const layout = value.layout;
     if (typeof layout !== 'object' || layout === null || Array.isArray(layout) || Object.keys(layout).some((key) => key !== 'preset') || (layout as Record<string, unknown>).preset !== 'canvas') {
@@ -482,7 +470,6 @@ function readPostConfig(postDir: string): RawPostConfig {
 function toPostObject(
   source: string,
   metadataTitle: string,
-  authoredDate: Date | undefined,
   config?: RawPostConfig,
 ): Post {
   const panesConfig = normalizePaneConfig(config?.panes);
@@ -511,18 +498,10 @@ function toPostObject(
 
   const primaryPane = panes.find((pane) => pane.id === 'canvas') ?? panes[0];
 
-  const date = buildUnstatedDate(authoredDate);
-
   return {
     metadata: {
       title: metadataTitle,
-      date,
-      isoDate: date.toISOString(),
-      createdAt: date,
-      updatedAt: date,
-      contentHash: '',
-      shortHash: '',
-      authoredDate,
+      createdAt: config?.createdAt ? new Date(config.createdAt) : undefined,
       slug,
       source,
     },
@@ -546,8 +525,7 @@ export function loadPost(filePath: string): Post {
   const configTitle = typeof config.title === 'string' && config.title.trim().length > 0
     ? config.title.trim()
     : inferTitleFromPath(filePath);
-  const configDate = parseOptionalDate(config.date, path.join(filePath, 'post.json'));
-  const post = toPostObject(filePath, configTitle, configDate, config);
+  const post = toPostObject(filePath, configTitle, config);
   return post;
 }
 
@@ -572,7 +550,7 @@ export function collectPostSources(postsDir: string): string[] {
 
   }
 
-  return paths;
+  return paths.sort();
 }
 
 export function collectMarkdownFiles(postsDir: string): string[] {

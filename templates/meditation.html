@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="{{site_language}}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{document_title}}</title>
+    <meta name="description" content="{{document_description}}" />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: var(--ssg-prose-font, ui-sans-serif, system-ui, sans-serif);
+        max-width: 48rem;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+        font-size: 1.14rem;
+        line-height: 1.6;
+      }
+
+      header {
+        margin-bottom: 2rem;
+      }
+
+      .meditation-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: baseline;
+      }
+
+      h1 {
+        margin: 0;
+        line-height: 1.15;
+      }
+
+      time {
+        flex: none;
+      }
+
+      article > :first-child {
+        margin-top: 0;
+      }
+
+      article > :last-child {
+        margin-bottom: 0;
+      }
+
+      footer {
+        margin-top: 3rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid;
+        font-size: 0.98rem;
+      }
+    </style>
+    {{css_import}}
+    {{font_import}}
+  </head>
+  <body>
+    <header>
+      <div class="meditation-heading">
+        <h1>{{title}}</h1>
+        <time datetime="{{date_iso}}">{{date}}</time>
+      </div>
+      <nav class="site-nav"><a class="site-title" href="../../">{{site_title}}</a>{{site_navigation}}</nav>
+    </header>
+
+    <article>
+      {{content}}
+    </article>
+
+    <footer>{{site_footer}}</footer>
+  </body>
+</html>

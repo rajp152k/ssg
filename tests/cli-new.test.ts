@@ -48,6 +48,7 @@ describe('new command', () => {
       const postJson = fs.readFileSync(path.join(postDir, 'post.json'), 'utf8');
       const canvas = fs.readFileSync(path.join(postDir, 'canvas.md'), 'utf8');
 
+      expect(new Date(JSON.parse(postJson).createdAt).toISOString()).toBe(JSON.parse(postJson).createdAt);
       expect(postJson).toContain('"id": "canvas"');
       expect(postJson).toContain('"preset": "canvas"');
       expect(canvas).toContain('# My Canvas Post');
@@ -66,6 +67,8 @@ describe('new command', () => {
     try {
       process.chdir(tmp);
       newCommand({ title: 'My Canvas Post', configPath });
+      const postJsonPath = path.join(tmp, 'content', 'posts', 'my-canvas-post', 'post.json');
+      const createdAt = JSON.parse(fs.readFileSync(postJsonPath, 'utf8')).createdAt;
       const canvasPath = path.join(tmp, 'content', 'posts', 'my-canvas-post', 'canvas.md');
       fs.writeFileSync(canvasPath, 'custom', 'utf8');
 
@@ -74,6 +77,7 @@ describe('new command', () => {
 
       newCommand({ title: 'My Canvas Post', configPath, force: true });
       expect(fs.readFileSync(canvasPath, 'utf8')).toContain('# My Canvas Post');
+      expect(JSON.parse(fs.readFileSync(postJsonPath, 'utf8')).createdAt).toBe(createdAt);
     } finally {
       process.chdir(originalCwd);
       fs.rmSync(tmp, { recursive: true, force: true });

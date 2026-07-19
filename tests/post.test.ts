@@ -17,6 +17,7 @@ function createCanvasPost(root: string, title: string, body: string, slug = titl
     JSON.stringify(
       {
         title,
+        createdAt: '2026-01-01T00:00:00.000Z',
         panes: [
           { id: 'index', title: 'Index', generated: 'index', source: 'canvas' },
           { id: 'canvas', title: 'Canvas', file: 'canvas.md' },
@@ -40,6 +41,7 @@ describe('post parsing', () => {
     try {
       const post = loadPost(postDir);
       expect(post.metadata.title).toBe('Test Post');
+      expect(post.metadata.createdAt?.toISOString()).toBe('2026-01-01T00:00:00.000Z');
       expect(post.metadata.slug).toBe('test-post');
       expect(post.panes.map((pane) => pane.id)).toEqual(['index', 'canvas', 'annotations']);
       expect(post.bodyHtml).toContain('<p>This is <strong>markdown</strong>.</p>');
@@ -66,6 +68,7 @@ describe('post parsing', () => {
     createTempFile(path.join(tmp, 'outside.md'), '# Private');
     createTempFile(path.join(postDir, 'post.json'), JSON.stringify({
       title: 'Unsafe Post',
+      createdAt: '2026-01-01T00:00:00.000Z',
       panes: [
         { id: 'index', generated: 'index', source: 'canvas' },
         { id: 'canvas', file: '../outside.md' },

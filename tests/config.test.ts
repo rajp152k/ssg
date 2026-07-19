@@ -18,6 +18,7 @@ describe('config resolution', () => {
       },
       paths: {
         postsDir: 'posts',
+        meditationsDir: 'meditations',
         templatesDir: 'templates',
         outputDir: 'build',
       },
@@ -37,7 +38,8 @@ describe('config resolution', () => {
       expect(config.site.theme).toBe('themes/tbm.css');
       expect(config.site.font).toBe('fonts/terminess.css');
       expect(config.sourceDir).toBe(tmp);
-      expect(config.postsDir).toBe(path.join(tmp, 'posts')); 
+      expect(config.postsDir).toBe(path.join(tmp, 'posts'));
+      expect(config.meditationsDir).toBe(path.join(tmp, 'meditations'));
       expect(config.templatesDir).toBe(path.join(tmp, 'templates'));
       expect(config.outputDir).toBe(path.join(tmp, 'build'));
       expect(config.dev.host).toBe('0.0.0.0');
@@ -72,11 +74,13 @@ describe('config resolution', () => {
       const config = resolveConfig({
         configPath,
         postsDir: 'cli-posts',
+        meditationsDir: 'cli-meditations',
         host: '127.0.0.2',
         port: '5000',
       });
 
       expect(config.postsDir).toBe(path.join(tmp, 'cli-posts'));
+      expect(config.meditationsDir).toBe(path.join(tmp, 'cli-meditations'));
       expect(config.dev.host).toBe('127.0.0.2');
       expect(config.dev.port).toBe(5000);
     } finally {

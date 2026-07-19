@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Post, PostLayout } from '../types';
-import { renderTemplate, formatDate } from './template';
+import type { Meditation, Post, PostLayout } from '../types';
+import { formatDate, renderTemplate } from './template';
+import { collectMeditationSources, loadMeditation } from './meditation';
 import { collectPostSources, createWorkAreaStyle, loadPost } from './post';
-import { applyPostState, getStatePath } from './state';
 import type { SsgConfig } from '../config';
 
 type TemplateContext = Record<string, string>;
@@ -85,23 +85,23 @@ if (window.mermaid && document.querySelector('.mermaid')) {
     securityLevel: 'loose',
     theme: 'base',
     themeVariables: {
-      background: '#ffffff',
-      primaryColor: '#ffffff',
-      primaryTextColor: '#000000',
-      primaryBorderColor: '#000000',
-      lineColor: '#000000',
-      secondaryColor: '#ffffff',
-      secondaryTextColor: '#000000',
-      secondaryBorderColor: '#000000',
-      tertiaryColor: '#ffffff',
-      tertiaryTextColor: '#000000',
-      tertiaryBorderColor: '#000000',
-      noteBkgColor: '#ffffff',
-      noteTextColor: '#000000',
-      noteBorderColor: '#000000',
-      edgeLabelBackground: '#ffffff',
-      clusterBkg: '#ffffff',
-      clusterBorder: '#000000',
+      background: '#0b0d10',
+      primaryColor: '#17283d',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#58a6ff',
+      lineColor: '#9aa7b2',
+      secondaryColor: '#172b20',
+      secondaryTextColor: '#e6edf3',
+      secondaryBorderColor: '#7ee787',
+      tertiaryColor: '#2a2038',
+      tertiaryTextColor: '#e6edf3',
+      tertiaryBorderColor: '#bc8cff',
+      noteBkgColor: '#332a16',
+      noteTextColor: '#e6edf3',
+      noteBorderColor: '#e3b341',
+      edgeLabelBackground: '#12161b',
+      clusterBkg: '#12161b',
+      clusterBorder: '#293341',
       fontFamily: 'Iosevka, ui-monospace, monospace',
     },
   });
@@ -143,6 +143,7 @@ function assertSafeOutputDirectory(config: SsgConfig): void {
   const inputs = [
     ['postsDir', path.resolve(config.postsDir)],
     ['pagesDir', path.resolve(config.pagesDir ?? path.join(config.sourceDir, 'content', 'pages'))],
+    ['meditationsDir', path.resolve(config.meditationsDir)],
     ['templatesDir', path.resolve(config.templatesDir)],
   ] as const;
 
@@ -198,8 +199,13 @@ function copyPostAssets(post: Post, outputDir: string): void {
   copy(sourceDir);
 }
 
-function sortPostsByDateDesc(posts: Post[]): Post[] {
-  return [...posts].sort((a, b) => b.metadata.date.getTime() - a.metadata.date.getTime());
+function sortPostsByRecency(posts: Post[]): Post[] {
+  return [...posts].sort((a, b) => {
+    const aCreatedAt = a.metadata.createdAt;
+    const bCreatedAt = b.metadata.createdAt;
+    if (!aCreatedAt || !bCreatedAt) throw new Error('Posts require createdAt metadata');
+    return bCreatedAt.getTime() - aCreatedAt.getTime();
+  });
 }
 
 function isHttpOrHttpsUrl(value: string): boolean {
@@ -362,9 +368,11 @@ function renderPostsIndexTemplate(
   themeImport: string,
   fontImport: string,
 ): string {
-  const rows = posts
+  const items = posts
     .map((post) => {
-      return `<tr><td><a href="./${escapeHtml(post.metadata.slug)}/">${escapeHtml(post.metadata.title)}</a></td><td><time datetime="${post.metadata.updatedAt.toISOString()}">${formatDate(post.metadata.updatedAt)}</time></td><td><code>${post.metadata.shortHash}</code></td></tr>`;
+      const createdAt = post.metadata.createdAt;
+      if (!createdAt) throw new Error(`Post requires createdAt metadata: ${post.metadata.source}`);
+      return `<li><a href="./${escapeHtml(post.metadata.slug)}/">${escapeHtml(post.metadata.title)}</a><time datetime="${createdAt.toISOString()}">${formatDate(createdAt)}</time></li>`;
     })
     .join('\n');
 
@@ -373,8 +381,52 @@ function renderPostsIndexTemplate(
     buildTemplateContext(config, {
       title: config.site.indexTitle,
       page_title: config.site.indexTitle,
-      content: `<table class="posts-table"><thead><tr><th>post</th><th>updated</th><th>hash</th></tr></thead><tbody>${rows}</tbody></table>`,
+      content: `<ul class="posts-list">${items}</ul>`,
       description: config.site.indexDescription,
+      css_import: themeImport,
+      font_import: fontImport,
+    }),
+  );
+}
+
+const MEDITATIONS_PER_PAGE = 20;
+
+function sortMeditationsByRecency(meditations: Meditation[]): Meditation[] {
+  return [...meditations].sort((a, b) => b.date.getTime() - a.date.getTime() || a.slug.localeCompare(b.slug));
+}
+
+function meditationPageHref(page: number): string {
+  return page === 1 ? '/meditations/' : `/meditations/page/${page}/`;
+}
+
+function renderMeditationsIndexTemplate(
+  meditations: Meditation[],
+  page: number,
+  totalPages: number,
+  template: string,
+  config: SsgConfig,
+  themeImport: string,
+  fontImport: string,
+): string {
+  const items = meditations
+    .map((meditation) => `<li><a href="/meditations/${escapeHtml(meditation.slug)}/">${escapeHtml(meditation.title)}</a><time datetime="${meditation.date.toISOString()}">${formatDate(meditation.date)}</time></li>`)
+    .join('\n');
+  const pagination = totalPages > 1
+    ? `<nav class="pagination" aria-label="Meditation pages">${Array.from({ length: totalPages }, (_, index) => {
+      const pageNumber = index + 1;
+      return pageNumber === page
+        ? `<span aria-current="page">${pageNumber}</span>`
+        : `<a href="${meditationPageHref(pageNumber)}">${pageNumber}</a>`;
+    }).join('')}</nav>`
+    : '';
+
+  return renderTemplate(
+    template,
+    buildTemplateContext(config, {
+      title: 'meditations',
+      page_title: 'meditations',
+      content: `<ul class="posts-list meditations-list">${items}</ul>${pagination}`,
+      description: '',
       css_import: themeImport,
       font_import: fontImport,
     }),
@@ -463,23 +515,39 @@ function escapeHtml(value: string): string {
 export function buildSite(config: SsgConfig): void {
   const postsDir = config.postsDir;
   const pagesDir = config.pagesDir ?? path.join(config.sourceDir, 'content', 'pages');
+  const meditationsDir = config.meditationsDir;
   const outputDir = config.outputDir;
   const templatesDir = config.templatesDir;
 
   assertSafeOutputDirectory(config);
   fs.mkdirSync(postsDir, { recursive: true });
   fs.mkdirSync(pagesDir, { recursive: true });
+  fs.mkdirSync(meditationsDir, { recursive: true });
 
   const postTemplate = readTemplate(templatesDir, 'post.html');
   const pageTemplatePath = path.join(templatesDir, 'page.html');
   const pageTemplate = fs.existsSync(pageTemplatePath) ? readTemplate(templatesDir, 'page.html') : postTemplate;
   const indexTemplate = readTemplate(templatesDir, 'index.html');
+  const meditationTemplatePath = path.join(templatesDir, 'meditation.html');
+  const meditationTemplate = fs.existsSync(meditationTemplatePath)
+    ? readTemplate(templatesDir, 'meditation.html')
+    : postTemplate;
 
   const postSources = collectPostSources(postsDir);
   const pageSources = collectPostSources(pagesDir);
+  const meditationSources = collectMeditationSources(meditationsDir);
   const posts = postSources.map((source) => loadPost(source));
   const pages = pageSources.map((source) => loadPost(source));
+  const meditations = meditationSources.map((source) => loadMeditation(source));
   assertUniqueSlugs([...posts, ...pages]);
+  if ([...posts, ...pages].some((post) => post.metadata.slug === 'meditations')) {
+    throw new Error('The route "meditations" is reserved for the meditation index');
+  }
+  const meditationSlugs = new Set<string>();
+  for (const meditation of meditations) {
+    if (meditationSlugs.has(meditation.slug)) throw new Error(`Duplicate meditation slug "${meditation.slug}"`);
+    meditationSlugs.add(meditation.slug);
+  }
 
   const stagingDir = path.join(path.dirname(outputDir), `.${path.basename(outputDir)}.${process.pid}.tmp`);
   fs.rmSync(stagingDir, { recursive: true, force: true });
@@ -487,16 +555,13 @@ export function buildSite(config: SsgConfig): void {
   const buildConfig = { ...config, outputDir: stagingDir };
   const themeImport = buildThemeImport(buildConfig);
   const fontImport = buildFontImport(buildConfig);
-  applyPostState(posts, getStatePath(config.sourceDir));
-  const sortedPosts = sortPostsByDateDesc(posts);
+  const sortedPosts = sortPostsByRecency(posts);
+  const sortedMeditations = sortMeditationsByRecency(meditations);
 
   const renderDocument = (post: Post, template: string) => {
     const pageContext = buildTemplateContext(config, {
       title: escapeHtml(post.metadata.title),
-      date: formatDate(post.metadata.createdAt),
-      created_date: formatDate(post.metadata.createdAt),
-      updated_date: formatDate(post.metadata.updatedAt),
-      content_hash: post.metadata.shortHash,
+      created_date: post.metadata.createdAt ? formatDate(post.metadata.createdAt) : '',
       content: post.bodyHtml,
       document_title: escapeHtml(`${post.metadata.title} · ${config.site.title}`),
       document_description: escapeHtml(`${post.metadata.title} by ${config.site.author}`),
@@ -513,6 +578,39 @@ export function buildSite(config: SsgConfig): void {
 
   for (const post of sortedPosts) renderDocument(post, postTemplate);
   for (const page of pages) renderDocument(page, pageTemplate);
+  for (const meditation of sortedMeditations) {
+    const meditationHtml = renderTemplate(
+      meditationTemplate,
+      buildTemplateContext(config, {
+        title: escapeHtml(meditation.title),
+        date: formatDate(meditation.date),
+        date_iso: meditation.date.toISOString(),
+        content: meditation.bodyHtml,
+        document_title: escapeHtml(`${meditation.title} · ${config.site.title}`),
+        document_description: escapeHtml(`${meditation.title} by ${config.site.author}`),
+        css_import: themeImport,
+        font_import: fontImport,
+      }),
+    );
+    writePage(stagingDir, path.join('meditations', meditation.slug), meditationHtml);
+  }
+
+  const totalMeditationPages = Math.max(1, Math.ceil(sortedMeditations.length / MEDITATIONS_PER_PAGE));
+  for (let page = 1; page <= totalMeditationPages; page += 1) {
+    const start = (page - 1) * MEDITATIONS_PER_PAGE;
+    const pageMeditations = sortedMeditations.slice(start, start + MEDITATIONS_PER_PAGE);
+    const meditationIndexHtml = renderMeditationsIndexTemplate(
+      pageMeditations,
+      page,
+      totalMeditationPages,
+      indexTemplate,
+      buildConfig,
+      themeImport,
+      fontImport,
+    );
+    const route = page === 1 ? 'meditations' : path.join('meditations', 'page', String(page));
+    writePage(stagingDir, route, meditationIndexHtml);
+  }
 
   const indexHtml = renderPostsIndexTemplate(sortedPosts, indexTemplate, buildConfig, themeImport, fontImport);
   fs.writeFileSync(path.join(stagingDir, 'index.html'), indexHtml, 'utf8');
