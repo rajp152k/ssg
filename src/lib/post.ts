@@ -442,13 +442,8 @@ function readPostConfig(postDir: string): RawPostConfig {
   for (const key of ['title', 'createdAt', 'slug']) {
     if (value[key] !== undefined && typeof value[key] !== 'string') throw new Error(`Invalid post config in ${configPath}: ${key} must be a string`);
   }
-  if (fs.existsSync(postConfigPath)) {
-    if (typeof value.createdAt !== 'string') {
-      throw new Error(`Invalid post config in ${configPath}: createdAt is required`);
-    }
-    if (Number.isNaN(new Date(value.createdAt).getTime())) {
-      throw new Error(`Invalid post config in ${configPath}: createdAt must be an ISO date`);
-    }
+  if (value.createdAt !== undefined && Number.isNaN(new Date(value.createdAt as string).getTime())) {
+    throw new Error(`Invalid post config in ${configPath}: createdAt must be an ISO date`);
   }
 
   if (value.layout !== undefined) {

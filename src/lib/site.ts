@@ -200,12 +200,9 @@ function copyPostAssets(post: Post, outputDir: string): void {
 }
 
 function sortPostsByRecency(posts: Post[]): Post[] {
-  return [...posts].sort((a, b) => {
-    const aCreatedAt = a.metadata.createdAt;
-    const bCreatedAt = b.metadata.createdAt;
-    if (!aCreatedAt || !bCreatedAt) throw new Error('Posts require createdAt metadata');
-    return bCreatedAt.getTime() - aCreatedAt.getTime();
-  });
+  return [...posts].sort((a, b) =>
+    (b.metadata.createdAt?.getTime() ?? 0) - (a.metadata.createdAt?.getTime() ?? 0)
+    || a.metadata.slug.localeCompare(b.metadata.slug));
 }
 
 function isHttpOrHttpsUrl(value: string): boolean {
@@ -371,8 +368,10 @@ function renderPostsIndexTemplate(
   const items = posts
     .map((post) => {
       const createdAt = post.metadata.createdAt;
-      if (!createdAt) throw new Error(`Post requires createdAt metadata: ${post.metadata.source}`);
-      return `<li><a href="./${escapeHtml(post.metadata.slug)}/">${escapeHtml(post.metadata.title)}</a><time datetime="${createdAt.toISOString()}">${formatDate(createdAt)}</time></li>`;
+      const time = createdAt
+        ? `<time datetime="${createdAt.toISOString()}">${formatDate(createdAt)}</time>`
+        : '';
+      return `<li><a href="./${escapeHtml(post.metadata.slug)}/">${escapeHtml(post.metadata.title)}</a>${time}</li>`;
     })
     .join('\n');
 
